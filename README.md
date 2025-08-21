@@ -84,18 +84,17 @@ mvnw.cmd spring-boot:run
 
 O workshop está dividido em 9 passos progressivos. Cada passo tem seu próprio README detalhado:
 
-| Passo  | Descrição                    | README                                     |
-|--------|------------------------------|--------------------------------------------|
-| **1**  | Configuração Inicial         | [README_STEP_1.md](docs/README_STEP_1.md)  |
-| **2**  | Banco de Dados (H2 + SQL)    | [README_STEP_2.md](docs/README_STEP_2.md)  |
-| **3**  | Entity e Repository          | [README_STEP_3.md](docs/README_STEP_3.md)  |
-| **4**  | DTOs e Mapper                | [README_STEP_4.md](docs/README_STEP_4.md)  |
-| **5**  | Service (Lógica de Negócio)  | [README_STEP_5.md](docs/README_STEP_5.md)  |
-| **6**  | Controller (Endpoints REST)  | [README_STEP_6.md](docs/README_STEP_6.md)  |
-| **7**  | Tratamento de Erros          | [README_STEP_7.md](docs/README_STEP_7.md)  |
-| **8**  | Validações (Bean Validation) | [README_STEP_8.md](docs/README_STEP_8.md)  |
-| **9**  | Documentação (Swagger)       | [README_STEP_9.md](docs/README_STEP_9.md)  |
-| **10** | Revisão Final                | [README_STEP_9.md](docs/README_STEP_10.md) |
+| Passo | Descrição                                | README                                    |
+|-------|------------------------------------------|-------------------------------------------|
+| **1** | Configuração Inicial                     | [README_STEP_1.md](docs/README_STEP_1.md) |
+| **2** | Banco de Dados (H2 + SQL)                | [README_STEP_2.md](docs/README_STEP_2.md) |
+| **3** | Entity e Repository                      | [README_STEP_3.md](docs/README_STEP_3.md) |
+| **4** | DTOs e Mapper                            | [README_STEP_4.md](docs/README_STEP_4.md) |
+| **5** | Service (Lógica de Negócio)              | [README_STEP_5.md](docs/README_STEP_5.md) |
+| **6** | Controller E validaçoes (Endpoints REST) | [README_STEP_6.md](docs/README_STEP_6.md) |
+| **7** | Tratamento de Erros                      | [README_STEP_7.md](docs/README_STEP_7.md) |
+| **8** | Documentação (Swagger)                   | [README_STEP_8.md](docs/README_STEP_8.md) |
+| **9** | Revisão Final                            | [README_STEP_9.md](docs/README_STEP_9.md) |
 
 ### 🎓 Como seguir o workshop:
 

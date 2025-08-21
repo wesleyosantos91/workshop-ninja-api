@@ -1,23 +1,172 @@
-# Passo 6 - Controller (Endpoints da API)
+# Passo 6 - Controller com Validações (Endpoints da API)
 
 ## O que vamos fazer
-Vamos criar o `NinjaController` que expõe os endpoints HTTP da nossa API REST e implementar testes automatizados completos.
+Vamos criar o `NinjaController` que expõe os endpoints HTTP da nossa API REST, implementar Bean Validation para garantir dados corretos, e criar testes automatizados completos.
 
 ## 1) O que é um Controller?
 
 O **Controller** é a porta de entrada da sua API:
 - Recebe requisições HTTP (GET, POST, PUT, DELETE)
+- **Valida dados** com Bean Validation antes de processar
 - Chama o Service para processar a lógica
 - Retorna respostas HTTP com dados ou status
 
 **Fluxo completo:**
 1. Cliente faz requisição → **Controller**
-2. Controller chama → **Service** 
-3. Service chama → **Repository**
-4. Repository acessa → **Banco de Dados**
-5. Resposta volta pelo mesmo caminho
+2. Controller **valida dados** → Bean Validation
+3. Controller chama → **Service** 
+4. Service chama → **Repository**
+5. Repository acessa → **Banco de Dados**
+6. Resposta volta pelo mesmo caminho
 
-## 2) Criando o NinjaController
+## 2) Configurando Bean Validation
+
+### 2.1) Por que usar Bean Validation?
+
+**Bean Validation** é o padrão Java (JSR 303/380) para validação de dados que oferece:
+
+**Sem validações:**
+- API aceita qualquer dado (inclusive vazios ou inválidos)  
+- Podem salvar dados incorretos no banco
+- Dificulta encontrar problemas
+- Código de validação espalhado por toda aplicação
+
+**Com Bean Validation:**
+- ✅ **Dados sempre corretos** - Validações automáticas antes de processar
+- ✅ **Mensagens padronizadas** - Erros claros sobre o que está incorreto
+- ✅ **Anotações declarativas** - Validações próximas aos campos
+- ✅ **Reutilização** - Mesmas validações em diferentes contextos
+- ✅ **Integração Spring** - Funcionamento automático com controllers
+- ✅ **Padrão internacional** - JSR 380 reconhecido mundialmente
+
+### 2.2) Adicionando a dependência
+
+Primeiro, adicione a dependência do Bean Validation no `pom.xml`:
+
+```xml
+<!-- Spring Boot Starter Validation -->
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-validation</artifactId>
+</dependency>
+```
+
+**Por que essa dependência?**
+- ✅ **Hibernate Validator** - Implementação de referência do Bean Validation
+- ✅ **Integração automática** - Funciona automaticamente com Spring Boot
+- ✅ **Anotações completas** - Todas as anotações JSR 380 disponíveis
+- ✅ **Mensagens internacionalizadas** - Suporte a múltiplos idiomas
+
+### 2.3) Criando grupos de validação
+
+Crie `src/main/java/br/org/soujava/bsb/api/core/validation/Groups.java`:
+
+```java
+package br.org.soujava.bsb.api.core.validation;
+
+/**
+ * Grupos de validação para Bean Validation.
+ * Permite aplicar diferentes validações para diferentes contextos.
+ */
+public class Groups {
+
+    /**
+     * Grupo usado para validações na criação de recursos.
+     */
+    public interface Create {}
+
+    /**
+     * Grupo usado para validações na atualização de recursos.
+     */
+    public interface Update {}
+}
+```
+
+**Por que usar grupos de validação?**
+- ✅ **Flexibilidade** - Diferentes regras para criação vs atualização
+- ✅ **Organização** - Agrupa validações por contexto
+- ✅ **Controle** - Escolhe quais validações aplicar em cada endpoint
+- ✅ **Cenários reais** - Na criação todos os campos são obrigatórios, na atualização podem ser opcionais
+
+**Exemplo prático:**
+```java
+// Na CRIAÇÃO: nome deve ser obrigatório
+@NotBlank(groups = Groups.Create.class)
+
+// Na ATUALIZAÇÃO: nome pode ser opcional (atualização parcial)
+// Sem grupos = não valida na atualização
+```
+
+### 2.4) Atualizando NinjaRequest com validações
+
+Edite `src/main/java/br/org/soujava/bsb/api/api/v1/request/NinjaRequest.java`:
+
+```java
+package br.org.soujava.bsb.api.api.v1.request;
+
+import br.org.soujava.bsb.api.core.validation.Groups;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import com.fasterxml.jackson.databind.annotation.JsonNaming;
+import jakarta.validation.constraints.*;
+import java.time.LocalDate;
+
+@JsonInclude(JsonInclude.Include.NON_NULL)
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
+public record NinjaRequest(
+
+    @NotBlank(message = "Nome é obrigatório", groups = Groups.Create.class)
+    @Size(max = 100, message = "Nome deve ter no máximo 100 caracteres", groups = Groups.Create.class)
+    String nome,
+
+    @NotBlank(message = "Vila é obrigatória", groups = Groups.Create.class)
+    @Size(max = 50, message = "Vila deve ter no máximo 50 caracteres", groups = Groups.Create.class)
+    String vila,
+
+    @Size(max = 50, message = "Clã deve ter no máximo 50 caracteres", groups = Groups.Create.class)
+    String cla,
+
+    @NotBlank(message = "Rank é obrigatório", groups = Groups.Create.class)
+    @Size(max = 20, message = "Rank deve ter no máximo 20 caracteres", groups = Groups.Create.class)
+    @Pattern(regexp = "^(Genin|Chunin|Jounin|Kage)$",
+             message = "Rank deve ser: Genin, Chunin, Jounin ou Kage",
+             groups = Groups.Create.class)
+    String rank,
+
+    @NotBlank(message = "Tipo de chakra é obrigatório", groups = Groups.Create.class)
+    @Size(max = 30, message = "Tipo de chakra deve ter no máximo 30 caracteres", groups = Groups.Create.class)
+    String chakraTipo,
+
+    @Size(max = 50, message = "Especialidade deve ter no máximo 50 caracteres", groups = Groups.Create.class)
+    String especialidade,
+
+    @Size(max = 50, message = "Kekkei Genkai deve ter no máximo 50 caracteres", groups = Groups.Create.class)
+    String kekkeiGenkai,
+
+    @Size(max = 20, message = "Status deve ter no máximo 20 caracteres", groups = Groups.Create.class)
+    @Pattern(regexp = "^(Ativo|Desaparecido|Renegado)$",
+             message = "Status deve ser: Ativo, Desaparecido ou Renegado",
+             groups = Groups.Create.class)
+    String status,
+
+    @Min(value = 1, message = "Nível de força deve ser no mínimo 1", groups = Groups.Create.class)
+    @Max(value = 100, message = "Nível de força deve ser no máximo 100", groups = Groups.Create.class)
+    Integer nivelForca,
+
+    @PastOrPresent(message = "Data de registro deve ser hoje ou no passado", groups = Groups.Create.class)
+    LocalDate dataRegistro
+) {
+}
+```
+
+**Principais anotações de validação:**
+- `@NotBlank` - Campo não pode estar vazio ou nulo
+- `@Size` - Define tamanho mínimo e máximo
+- `@Pattern` - Valida com expressão regular
+- `@Min/@Max` - Valores mínimo e máximo para números
+- `@PastOrPresent` - Data deve ser no passado ou presente
+
+## 3) Criando o NinjaController
 
 Crie `src/main/java/br/org/soujava/bsb/api/api/v1/controller/NinjaController.java`:
 

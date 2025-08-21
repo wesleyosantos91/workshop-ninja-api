@@ -544,4 +544,4 @@ verify(ninjaRepository).findById(1);
 ✅ **Precisos** - Verificam interações específicas
 
 ## Próximo passo
-Agora vamos criar o Controller, que vai expor os endpoints HTTP da nossa API. **[STEP 6 — Controller](README_STEP_6.md)**
+Agora vamos criar o Controller, que vai expor os endpoints HTTP da nossa API. **[STEP 6 — Controller com Validações (Endpoints da API)](README_STEP_6.md)**

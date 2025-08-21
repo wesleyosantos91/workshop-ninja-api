@@ -302,4 +302,4 @@ public ResponseEntity<ProblemDetail> handleInvalidJson(
 ```
 
 ## Próximo passo
-Agora vamos adicionar validações nos DTOs para garantir que os dados enviados estejam corretos. **[STEP 8 — Validações (Bean Validation)](README_STEP_8.md)**
+Agora vamos documentar nossas APIS. **[STEP 8 — OpenAPI / Swagger](README_STEP_8.md)**

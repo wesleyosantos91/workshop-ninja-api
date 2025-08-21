@@ -1,350 +1,425 @@
-# Passo 8 - Validações (Bean Validation)
+# Passo 9 - Documentação da API (Swagger/OpenAPI)
 
 ## O que vamos fazer
-Vamos adicionar validações nos DTOs para garantir que os dados enviados para a API estejam corretos e completos, usando Bean Validation com grupos para diferentes contextos.
+Vamos adicionar a dependência do SpringDoc OpenAPI, criar a configuração e testar a documentação automática da nossa API usando Swagger UI.
 
-## 1) Por que usar Bean Validation?
+## 1) O que é Swagger/OpenAPI?
 
-**Bean Validation** é o padrão Java (JSR 303/380) para validação de dados que oferece:
+**Swagger UI** é uma interface web que:
+- Mostra todos os endpoints da sua API
+- Permite testar a API diretamente no navegador
+- Gera documentação automática
+- Facilita o entendimento da API para outros desenvolvedores
 
-**Sem validações:**
-- API aceita qualquer dado (inclusive vazios ou inválidos)  
-- Podem salvar dados incorretos no banco
-- Dificulta encontrar problemas
-- Código de validação espalhado por toda aplicação
+**OpenAPI** é o padrão de especificação que descreve APIs REST.
 
-**Com Bean Validation:**
-- ✅ **Dados sempre corretos** - Validações automáticas antes de processar
-- ✅ **Mensagens padronizadas** - Erros claros sobre o que está incorreto
-- ✅ **Anotações declarativas** - Validações próximas aos campos
-- ✅ **Reutilização** - Mesmas validações em diferentes contextos
-- ✅ **Integração Spring** - Funcionamento automático com controllers
-- ✅ **Padrão internacional** - JSR 380 reconhecido mundialmente
+## 2) Adicionando a dependência SpringDoc OpenAPI
 
-## 2) Adicionando a dependência Spring Boot Validation
+Primeiro, precisamos adicionar a dependência no `pom.xml`. Esta dependência não estava disponível no Spring Initializr, então vamos adicioná-la manualmente.
 
-Primeiro, precisamos adicionar a dependência do Bean Validation no `pom.xml`:
+Adicione esta dependência na seção `<dependencies>` do seu `pom.xml`:
 
 ```xml
-<!-- Spring Boot Starter Validation -->
+<!-- SpringDoc OpenAPI UI -->
 <dependency>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-validation</artifactId>
+    <groupId>org.springdoc</groupId>
+    <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+    <version>2.8.6</version>
 </dependency>
 ```
 
-**Por que essa dependência?**
-- ✅ **Hibernate Validator** - Implementação de referência do Bean Validation
-- ✅ **Integração automática** - Funciona automaticamente com Spring Boot
-- ✅ **Anotações completas** - Todas as anotações JSR 380 disponíveis
-- ✅ **Mensagens internacionalizadas** - Suporte a múltiplos idiomas
+**Por que SpringDoc OpenAPI?**
+- ✅ **Automático** - Gera documentação baseada no código
+- ✅ **Padrão OpenAPI 3** - Segue especificação moderna
+- ✅ **Integração Spring Boot** - Funciona nativamente com Spring
+- ✅ **Interface interativa** - Permite testar endpoints
 
-## 3) Adicionando validações no NinjaRequest
+## 3) Configuração no application.yml
 
-### 3.1) Criando a classe Groups
+Além da dependência, precisamos adicionar algumas configurações no `application.yml` para personalizar o SpringDoc OpenAPI.
 
-Primeiro, vamos criar uma classe para grupos de validação, que nos permite aplicar diferentes validações em diferentes contextos.
+Adicione esta seção no seu `src/main/resources/application.yml`:
 
-Crie `src/main/java/br/org/soujava/bsb/api/core/validation/Groups.java`:
+```yaml
+# SpringDoc OpenAPI Configuration
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    try-it-out-enabled: true
+    operations-sorter: method
+    tags-sorter: alpha
+    doc-expansion: none
+    disable-swagger-default-url: true
+  show-actuator: false
+  writer-with-default-pretty-printer: true
+```
+
+**Explicando as configurações:**
+- `api-docs.path: /v3/api-docs` - Caminho para acessar a especificação OpenAPI em JSON
+- `swagger-ui.path: /swagger-ui.html` - Caminho para acessar a interface Swagger UI
+- `swagger-ui.enabled: true` - Habilita a interface Swagger UI
+- `try-it-out-enabled: true` - Permite testar endpoints diretamente na UI
+- `operations-sorter: method` - Ordena operações por método HTTP (GET, POST, etc.)
+- `tags-sorter: alpha` - Ordena tags alfabeticamente
+- `doc-expansion: none` - Não expande automaticamente as seções da documentação
+- `disable-swagger-default-url: true` - Remove URL padrão do Swagger
+- `show-actuator: false` - Não mostra endpoints do Spring Actuator
+- `writer-with-default-pretty-printer: true` - Formata o JSON da API de forma legível
+
+## 4) Criando a configuração OpenAPIConfig
+
+Agora vamos criar a classe de configuração para personalizar nossa documentação:
+
+Crie `src/main/java/br/org/soujava/bsb/api/infrastructure/openapi/OpenAPIConfig.java`:
 
 ```java
-package br.org.soujava.bsb.api.core.validation;
+package br.org.soujava.bsb.api.infrastructure.openapi;
 
-/**
- * Grupos de validação para Bean Validation.
- * Permite aplicar diferentes validações para diferentes contextos.
- */
-public class Groups {
-    
-    /**
-     * Grupo usado para validações na criação de recursos.
-     */
-    public interface Create {}
-    
-    /**
-     * Grupo usado para validações na atualização de recursos.
-     */
-    public interface Update {}
+import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
+
+import br.org.soujava.bsb.api.api.v1.response.CustomProblemDetail;
+import io.swagger.v3.core.converter.ModelConverters;
+import io.swagger.v3.oas.models.Components;
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.info.Contact;
+import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.info.License;
+import io.swagger.v3.oas.models.media.Content;
+import io.swagger.v3.oas.models.media.MediaType;
+import io.swagger.v3.oas.models.media.Schema;
+import io.swagger.v3.oas.models.responses.ApiResponse;
+import io.swagger.v3.oas.models.servers.Server;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
+
+@Profile("!prod") // Não executa em produção por segurança
+@Configuration
+public class OpenAPIConfig {
+
+    private static final String BAD_REQUEST_RESPONSE = "BadRequestResponse";
+    private static final String NOT_FOUND_RESPONSE = "NotFoundResponse";
+    private static final String NOT_ACCEPTABLE_RESPONSE = "NotAcceptableResponse";
+    private static final String INTERNAL_SERVER_ERROR_RESPONSE = "InternalServerErrorResponse";
+
+    @Value("${server.address:localhost}")
+    private String host;
+
+    @Value("${server.port:8080}")
+    private Integer port;
+
+    @Bean
+    public OpenAPI openAPIDefinition() {
+
+        final Info info = new Info()
+                .title("Ninja API - Workshop SouJava BSB")
+                .version("1.0.0")
+                .contact(descriptionContact())
+                .description("API RESTful de domínio ninja desenvolvida com Spring Boot - Workshop \"Do Zero à API\"")
+                .termsOfService("https://soujava-brasilia.github.io/")
+                .license(descriptionLicense());
+
+        return new OpenAPI()
+                .info(info)
+                .components(components())
+                .servers(List.of(getServer()));
+    }
+
+    private Contact descriptionContact() {
+        return new Contact()
+                .name("SouJava Brasília")
+                .email("contato@soujava-brasilia.org")
+                .url("https://soujava-brasilia.github.io/");
+    }
+
+    private License descriptionLicense() {
+        return new License()
+                .name("MIT License")
+                .url("https://opensource.org/licenses/MIT");
+    }
+
+    private Server getServer() {
+        final Server devServer = new Server();
+        devServer.setUrl(String.format("http://%s:%d", host, port));
+        devServer.setDescription("Servidor de desenvolvimento");
+        return devServer;
+    }
+
+    private Components components() {
+        return new Components()
+                .schemas(gerarSchemas())
+                .responses(gerarResponses());
+    }
+
+    private Map<String, Schema> gerarSchemas() {
+        // Registra o schema do CustomProblemDetail para erros
+        return ModelConverters.getInstance().read(CustomProblemDetail.class);
+    }
+
+    private Map<String, ApiResponse> gerarResponses() {
+        final Map<String, ApiResponse> apiResponseMap = new HashMap<>();
+
+        final Content content = new Content()
+                .addMediaType(APPLICATION_JSON_VALUE,
+                        new MediaType().schema(new Schema<CustomProblemDetail>().$ref("CustomProblemDetail")));
+
+        // Define respostas padrão para códigos de erro
+        apiResponseMap.put(BAD_REQUEST_RESPONSE, new ApiResponse()
+                .description("Requisição inválida - dados enviados estão incorretos")
+                .content(content));
+
+        apiResponseMap.put(NOT_FOUND_RESPONSE, new ApiResponse()
+                .description("Recurso não encontrado")
+                .content(content));
+
+        apiResponseMap.put(NOT_ACCEPTABLE_RESPONSE, new ApiResponse()
+                .description("Formato não aceito")
+                .content(content));
+
+        apiResponseMap.put(INTERNAL_SERVER_ERROR_RESPONSE, new ApiResponse()
+                .description("Erro interno do servidor")
+                .content(content));
+
+        return apiResponseMap;
+    }
 }
 ```
 
-**Por que usar grupos de validação?**
-- ✅ **Flexibilidade** - Diferentes regras para criação vs atualização
-- ✅ **Organização** - Agrupa validações por contexto
-- ✅ **Controle** - Escolhe quais validações aplicar em cada endpoint
-- ✅ **Cenários reais** - Na criação todos os campos são obrigatórios, na atualização podem ser opcionais
+## 5) Entendendo a configuração
 
-**Exemplo prático:**
-```java
-// Na CRIAÇÃO: nome deve ser obrigatório
-@NotBlank(groups = Groups.Create.class)
+**@Profile("!prod")** - Só ativa em ambientes que não sejam produção (por segurança)
 
-// Na ATUALIZAÇÃO: nome pode ser opcional (atualização parcial)
-// Sem grupos = não valida na atualização
-```
+**@Configuration** - Marca como classe de configuração do Spring
 
-### 3.2) Atualizando o NinjaRequest com validações completas
+**OpenAPI Bean** - Define as informações gerais da API:
+- **Info** - Título, versão, descrição da API
+- **Contact** - Informações de contato dos desenvolvedores
+- **License** - Licença do projeto
+- **Server** - URL do servidor
 
-Agora vamos atualizar o `NinjaRequest` com validações baseadas na estrutura da tabela NINJA:
+**Components** - Define componentes reutilizáveis:
+- **Schemas** - Modelos de dados (como CustomProblemDetail)
+- **Responses** - Respostas padrão para códigos de erro
 
-Edite `src/main/java/br/org/soujava/bsb/api/api/v1/request/NinjaRequest.java`:
+**Por que registrar CustomProblemDetail?**
+- Documenta automaticamente a estrutura de erros da API
+- Mostra no Swagger como são as respostas de erro
+- Mantém documentação sincronizada com implementação
 
-```java
-package br.org.soujava.bsb.api.api.v1.request;
+## 6) Compilando e testando
 
-import br.org.soujava.bsb.api.core.validation.Groups;
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.databind.PropertyNamingStrategies;
-import com.fasterxml.jackson.databind.annotation.JsonNaming;
-import jakarta.validation.constraints.*;
-import java.time.LocalDate;
-
-@JsonInclude(JsonInclude.Include.NON_NULL)
-@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
-public record NinjaRequest(
-    
-    @NotBlank(message = "Nome é obrigatório", groups = Groups.Create.class)
-    @Size(max = 100, message = "Nome deve ter no máximo 100 caracteres", groups = Groups.Create.class)
-    String nome,
-    
-    @NotBlank(message = "Vila é obrigatória", groups = Groups.Create.class)
-    @Size(max = 50, message = "Vila deve ter no máximo 50 caracteres", groups = Groups.Create.class)
-    String vila,
-    
-    @Size(max = 50, message = "Clã deve ter no máximo 50 caracteres", groups = Groups.Create.class)
-    String cla,
-    
-    @NotBlank(message = "Rank é obrigatório", groups = Groups.Create.class)
-    @Size(max = 20, message = "Rank deve ter no máximo 20 caracteres", groups = Groups.Create.class)
-    @Pattern(regexp = "^(Genin|Chunin|Jounin|Kage)$", 
-             message = "Rank deve ser: Genin, Chunin, Jounin ou Kage", 
-             groups = Groups.Create.class)
-    String rank,
-    
-    @NotBlank(message = "Tipo de chakra é obrigatório", groups = Groups.Create.class)
-    @Size(max = 30, message = "Tipo de chakra deve ter no máximo 30 caracteres", groups = Groups.Create.class)
-    String chakraTipo,
-    
-    @Size(max = 50, message = "Especialidade deve ter no máximo 50 caracteres", groups = Groups.Create.class)
-    String especialidade,
-    
-    @Size(max = 50, message = "Kekkei Genkai deve ter no máximo 50 caracteres", groups = Groups.Create.class)
-    String kekkeiGenkai,
-    
-    @Size(max = 20, message = "Status deve ter no máximo 20 caracteres", groups = Groups.Create.class)
-    @Pattern(regexp = "^(Ativo|Desaparecido|Renegado)$", 
-             message = "Status deve ser: Ativo, Desaparecido ou Renegado", 
-             groups = Groups.Create.class)
-    String status,
-    
-    @Min(value = 1, message = "Nível de força deve ser no mínimo 1", groups = Groups.Create.class)
-    @Max(value = 100, message = "Nível de força deve ser no máximo 100", groups = Groups.Create.class)
-    Integer nivelForca,
-    
-    @PastOrPresent(message = "Data de registro deve ser hoje ou no passado", groups = Groups.Create.class)
-    LocalDate dataRegistro
-) {}
-```
-
-**Validações aplicadas baseadas na estrutura da tabela:**
-
-| Campo da Tabela NINJA | Validações Bean Validation | Justificativa |
-|----------------------|---------------------------|---------------|
-| `nome VARCHAR(100) NOT NULL` | `@NotBlank`, `@Size(max=100)` | Campo obrigatório com limite de 100 caracteres |
-| `vila VARCHAR(50) NOT NULL` | `@NotBlank`, `@Size(max=50)` | Campo obrigatório com limite de 50 caracteres |
-| `cla VARCHAR(50)` | `@Size(max=50)` | Campo opcional, mas limitado a 50 caracteres |
-| `rank VARCHAR(20) NOT NULL` | `@NotBlank`, `@Size(max=20)`, `@Pattern` | Obrigatório, limitado e com valores específicos |
-| `chakra_tipo VARCHAR(30) NOT NULL` | `@NotBlank`, `@Size(max=30)` | Campo obrigatório com limite de 30 caracteres |
-| `especialidade VARCHAR(50)` | `@Size(max=50)` | Campo opcional com limite |
-| `kekkei_genkai VARCHAR(50)` | `@Size(max=50)` | Campo opcional com limite |
-| `status VARCHAR(20) DEFAULT 'Ativo'` | `@Size(max=20)`, `@Pattern` | Valores específicos permitidos |
-| `nivel_forca INT CHECK (BETWEEN 1 AND 100)` | `@Min(1)`, `@Max(100)` | Constraint do banco replicada em Java |
-| `data_registro DATE DEFAULT CURRENT_DATE` | `@PastOrPresent` | Data não pode ser no futuro |
-
-## 4) Principais anotações Bean Validation
-
-**Validações de obrigatoriedade:**
-- `@NotNull` - Campo não pode ser nulo
-- `@NotBlank` - Campo não pode ser nulo, vazio ou só espaços (String)
-- `@NotEmpty` - Campo não pode ser nulo ou vazio (Collections, Arrays)
-
-**Validações de tamanho:**
-- `@Size(min=, max=)` - Tamanho mínimo e máximo (String, Collections)
-- `@Length(min=, max=)` - Tamanho para Strings (Hibernate Validator)
-
-**Validações numéricas:**
-- `@Min(value)` - Valor mínimo para números
-- `@Max(value)` - Valor máximo para números
-- `@Positive` - Deve ser um número positivo (> 0)
-- `@PositiveOrZero` - Deve ser positivo ou zero (>= 0)
-- `@Negative` - Deve ser um número negativo (< 0)
-- `@DecimalMin` / `@DecimalMax` - Para números decimais
-
-**Validações de formato:**
-- `@Pattern(regexp)` - Deve seguir uma expressão regular
-- `@Email` - Deve ser um email válido
-- `@URL` - Deve ser uma URL válida
-
-**Validações de data/tempo:**
-- `@Past` - Data deve ser no passado
-- `@PastOrPresent` - Data deve ser passado ou presente  
-- `@Future` - Data deve ser no futuro
-- `@FutureOrPresent` - Data deve ser futuro ou presente
-
-## 5) Ativando validações no Controller
-
-Para que as validações funcionem, precisamos usar `@Validated` com o grupo no controller:
-
-Edite o `NinjaController.java`:
-
-```java
-// ...existing code...
-
-// POST /api/v1/ninjas - CRIAR NOVO
-@PostMapping
-public ResponseEntity<NinjaResponse> create(
-        @Validated(Groups.Create.class) @RequestBody NinjaRequest request) {
-    NinjaResponse ninja = ninjaService.create(request);
-    return ResponseEntity.status(HttpStatus.CREATED).body(ninja);
-}
-
-// PUT /api/v1/ninjas/1 - ATUALIZAR
-@PutMapping("/{id}")
-public ResponseEntity<NinjaResponse> update(
-        @PathVariable Integer id, 
-        @Validated(Groups.Update.class) @RequestBody NinjaRequest request) {
-    NinjaResponse ninja = ninjaService.update(id, request);
-    return ResponseEntity.ok(ninja);
-}
-
-// ...existing code...
-```
-
-**Diferença entre @Valid e @Validated:**
-- `@Valid` - Valida usando o grupo padrão (todas as validações sem grupos)
-- `@Validated(Groups.Create.class)` - Valida apenas as validações do grupo Create
-- `@Validated({Groups.Create.class, Groups.Update.class})` - Valida múltiplos grupos
-
-## 6) Testando as validações
-
-Compile o projeto para incluir a nova dependência:
+1. **Compile o projeto** para baixar a dependência:
 ```bash
 ./mvnw compile
 ```
 
-Execute a aplicação e teste diferentes cenários:
-
-**Ninja sem nome (deve falhar):**
+2. **Execute a aplicação:**
 ```bash
-curl -X POST http://localhost:8080/api/v1/ninjas \
-  -H "Content-Type: application/json" \
-  -d '{
-    "vila": "Konoha",
-    "rank": "Genin",
-    "chakra_tipo": "Fogo"
-  }'
+./mvnw spring-boot:run
 ```
 
-**Resposta esperada (RFC 9457 Problem Details):**
-```json
-{
-  "type": "about:blank",
-  "title": "Validation failed",
-  "status": 400,
-  "detail": "The following errors occurred:",
-  "timestamp": "2024-01-20T10:15:30.123456Z",
-  "errors": [
-    {
-      "field": "nome",
-      "message_error": "Nome é obrigatório"
-    }
-  ]
-}
-```
+3. **Acesse a documentação:**
+- **Swagger UI:** http://localhost:8080/swagger-ui.html
+- **JSON da API:** http://localhost:8080/v3/api-docs
+- **YAML da API:** http://localhost:8080/v3/api-docs.yaml
 
-**Rank inválido (deve falhar):**
-```bash
-curl -X POST http://localhost:8080/api/v1/ninjas \
-  -H "Content-Type: application/json" \
-  -d '{
-    "nome": "Teste Ninja",
-    "vila": "Konoha", 
-    "rank": "SuperNinja",
-    "chakra_tipo": "Fogo"
-  }'
-```
+## 7) O que você verá no Swagger
 
-**Resposta esperada:**
-```json
-{
-  "type": "about:blank",
-  "title": "Validation failed", 
-  "status": 400,
-  "detail": "The following errors occurred:",
-  "timestamp": "2024-01-20T10:15:30.123456Z",
-  "errors": [
-    {
-      "field": "rank",
-      "message_error": "Rank deve ser: Genin, Chunin, Jounin ou Kage"
-    }
-  ]
-}
-```
+✅ **Informações da API** - Título, versão, descrição  
+✅ **Todos os endpoints** - GET, POST, PUT, DELETE dos ninjas  
+✅ **Modelos de dados** - Estrutura dos DTOs (Request/Response)  
+✅ **Códigos de resposta** - 200, 201, 404, 400, etc.  
+✅ **Validações documentadas** - Campos obrigatórios, limites, padrões
+✅ **Possibilidade de teste** - Execute requests diretamente na interface
 
-**Dados válidos (deve funcionar):**
-```bash
-curl -X POST http://localhost:8080/api/v1/ninjas \
-  -H "Content-Type: application/json" \
-  -d '{
-    "nome": "Rock Lee",
-    "vila": "Konoha",
-    "cla": null,
-    "rank": "Chunin", 
-    "chakra_tipo": "Terra",
-    "especialidade": "Taijutsu",
-    "kekkei_genkai": null,
-    "status": "Ativo",
-    "nivel_forca": 75
-  }'
-```
+## 8) Melhorando a documentação com anotações
 
-## 7) Vantagens da implementação com grupos
-
-✅ **Flexibilidade por contexto** - Criação vs Atualização têm regras diferentes
-✅ **Reutilização** - Mesmo DTO para diferentes endpoints  
-✅ **Manutenibilidade** - Validações centralizadas no DTO
-✅ **Alinhamento com banco** - Validações espelham constraints da tabela
-✅ **Mensagens claras** - Usuário sabe exatamente o que corrigir
-✅ **Performance** - Validações acontecem antes do processamento
-✅ **Padrão industrial** - Bean Validation é amplamente adotado
-
-## 8) Validações personalizadas (avançado)
-
-Se precisar de validações mais específicas, pode criar suas próprias:
+Você pode adicionar mais informações nos controllers usando anotações OpenAPI:
 
 ```java
-// Exemplo de validação customizada
-@Target({ElementType.FIELD})
-@Retention(RetentionPolicy.RUNTIME)  
-@Constraint(validatedBy = NinjaNameValidator.class)
-public @interface ValidNinjaName {
-    String message() default "Nome de ninja inválido";
-    Class<?>[] groups() default {};
-    Class<? extends Payload>[] payload() default {};
-}
+@RestController
+@RequestMapping("/api/v1/ninjas")
+@Tag(name = "Ninjas", description = "Operações CRUD relacionadas aos ninjas")
+public class NinjaController {
 
-// Implementação da validação
-public class NinjaNameValidator implements ConstraintValidator<ValidNinjaName, String> {
-    
-    @Override
-    public boolean isValid(String value, ConstraintValidatorContext context) {
-        if (value == null) return true; // @NotBlank já valida isso
-        
-        // Regra: nome não pode ter números
-        return !value.matches(".*\\d.*");
+    @Operation(
+        summary = "Lista todos os ninjas", 
+        description = "Retorna uma lista com todos os ninjas cadastrados no sistema"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Lista retornada com sucesso"),
+        @ApiResponse(responseCode = "500", description = "Erro interno do servidor")
+    })
+    @GetMapping
+    public ResponseEntity<List<NinjaResponse>> findAll() {
+        // ...existing code...
+    }
+
+    @Operation(
+        summary = "Cria um novo ninja",
+        description = "Cadastra um novo ninja no sistema com os dados fornecidos"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "201", description = "Ninja criado com sucesso"),
+        @ApiResponse(responseCode = "400", description = "Dados de entrada inválidos")
+    })
+    @PostMapping
+    public ResponseEntity<NinjaResponse> create(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                description = "Dados do ninja a ser criado",
+                required = true
+            )
+            @Validated(Groups.Create.class) @RequestBody NinjaRequest request) {
+        // ...existing code...
     }
 }
 ```
 
+## 9) Principais anotações OpenAPI
+
+**@Tag** - Agrupa endpoints por categoria  
+**@Operation** - Descreve o que o endpoint faz  
+**@ApiResponses** - Lista possíveis códigos de resposta    
+**@Parameter** - Descreve parâmetros da requisição  
+**@RequestBody** - Descreve o corpo da requisição  
+**@Schema** - Documenta campos dos DTOs
+
+## 10) Adicionando exemplos nos DTOs
+
+Você também pode melhorar a documentação dos DTOs:
+
+```java
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
+@Schema(description = "Dados para criação ou atualização de um ninja")
+public record NinjaRequest(
+    
+    @Schema(description = "Nome do ninja", example = "Naruto Uzumaki", maxLength = 100)
+    @NotBlank(message = "Nome é obrigatório", groups = Groups.Create.class)
+    String nome,
+    
+    @Schema(description = "Vila de origem", example = "Konoha", maxLength = 50)
+    @NotBlank(message = "Vila é obrigatória", groups = Groups.Create.class)
+    String vila,
+    
+    @Schema(description = "Nível de força do ninja", example = "85", minimum = "1", maximum = "100")
+    @Min(value = 1, groups = Groups.Create.class) 
+    @Max(value = 100, groups = Groups.Create.class)
+    Integer nivelForca
+    
+    // ...outros campos...
+) {}
+```
+
+## 11) Benefícios da documentação automática
+
+✅ **Sempre atualizada** - Sincronizada automaticamente com o código  
+✅ **Interativa** - Permite testar endpoints sem ferramentas externas  
+✅ **Padronizada** - Segue especificação OpenAPI 3.0  
+✅ **Completa** - Mostra estruturas, validações e exemplos  
+✅ **Validações visíveis** - Documenta automaticamente as validações Bean Validation
+✅ **Profissional** - Facilita integração com outros sistemas
+
+## 12) Integração com Bean Validation
+
+O SpringDoc OpenAPI automaticamente documenta as validações Bean Validation:
+
+**Validações que aparecem automaticamente no Swagger:**
+- `@NotNull`, `@NotBlank` → Campo aparece como **required**
+- `@Size(max=100)` → Campo mostra **maxLength: 100**
+- `@Min(1)`, `@Max(100)` → Campo mostra **minimum: 1, maximum: 100**
+- `@Pattern(regexp="...")` → Campo mostra o padrão esperado
+- `@Email` → Campo aparece como formato **email**
+
+**Exemplo no Swagger UI:**
+```json
+{
+  "nome": {
+    "type": "string",
+    "description": "Nome do ninja",
+    "maxLength": 100,
+    "example": "Naruto Uzumaki"
+  },
+  "nivel_forca": {
+    "type": "integer", 
+    "minimum": 1,
+    "maximum": 100,
+    "example": 85
+  }
+}
+```
+
+## Revisão Final - O que construímos
+
+Parabéns! 🎉 Você construiu uma API REST completa do zero! Vamos revisar o que fizemos:
+
+### 🏗️ **Arquitetura em Camadas**
+- **Controller** - Recebe requisições HTTP
+- **Service** - Processa lógica de negócio
+- **Repository** - Acessa o banco de dados
+- **Entity** - Representa tabelas do banco
+- **DTOs** - Objetos para transferir dados
+
+### 🛠️ **Tecnologias Utilizadas**
+- **Java 21** - Linguagem moderna
+- **Spring Boot 3.5.4** - Framework principal
+- **Spring Data JPA** - Acesso ao banco de dados
+- **H2 Database** - Banco de dados em memória
+- **MapStruct** - Conversão automática entre objetos
+- **Bean Validation** - Validação de dados com grupos
+- **RFC 9457 Problem Details** - Tratamento padronizado de erros
+- **SpringDoc OpenAPI** - Documentação automática
+
+### 🎯 **Funcionalidades Implementadas**
+- ✅ Criar ninja (POST) com validações
+- ✅ Listar todos os ninjas (GET)
+- ✅ Buscar ninja por ID (GET)
+- ✅ Buscar ninjas com filtros (GET)
+- ✅ Atualizar ninja (PUT) com validações
+- ✅ Deletar ninja (DELETE)
+- ✅ Tratamento de erros padronizado (RFC 9457)
+- ✅ Validações Bean Validation com grupos
+- ✅ Documentação automática e interativa
+
+### 🚀 **Próximos Passos (para continuar aprendendo)**
+
+**Segurança:**
+- Spring Security com JWT
+- Controle de acesso por roles
+
+**Banco de dados real:**
+- PostgreSQL/MySQL com Docker
+- Migrations com Flyway
+
+**Testes avançados:**
+- Testcontainers para testes com banco real
+- Testes de performance
+
+**Observabilidade:**
+- Spring Actuator
+- Métricas com Micrometer
+
+**Deploy:**
+- Docker e Kubernetes
+- CI/CD pipelines
+
+### 📚 **O que você aprendeu**
+
+1. ✅ **Estrutura bem organizada** (packages por funcionalidade)
+2. ✅ **Separação de responsabilidades** (Controller → Service → Repository)
+3. ✅ **Validação robusta** (Bean Validation com grupos)
+4. ✅ **Tratamento de erros profissional** (RFC 9457)
+5. ✅ **Documentação automática** (OpenAPI/Swagger)
+6. ✅ **Mapeamento automático** (MapStruct)
+7. ✅ **Testes automatizados** (Repository, Service, Controller)
+
 ## Próximo passo
-Agora vamos adicionar validações nos DTOs para garantir que os dados enviados estejam corretos. **[STEP 9 — OpenAPI / Swagger](README_STEP_9.md)**
+Agora vamos finalizar com uma revisão geral do projeto e sugestões de melhorias para continuar evoluindo. **[STEP 9 — Revisão Final & Próximos Passos](README_STEP_9.md)**
+
