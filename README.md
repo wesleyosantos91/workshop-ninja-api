@@ -58,7 +58,7 @@ desenvolvimento.
 
 ```bash
 git clone https://github.com/wesleyosantos91/workshop-ninja-api.git
-cd api-do-zero
+cd workshop-ninja-api
 ```
 
 2. **Execute a aplicação:**
