@@ -1,188 +1,234 @@
-
 <div align="center">
-    ## 
-</div>
+  <img src="docs/asserts/logo-soujava.png" alt="SouJava Brasília" width="200"/>
 
-<div align="center">
+# 🥷 API do Zero - Workshop Ninja API
 
-## Do Zero à API — Plano Didático (Principal)
-  <img src="docs/asserts/logo-soujava.png" alt="logo" width="200" height="auto" />
-</div>
+**Workshop "Do Zero à API" - SouJava Brasília**
 
+Uma API REST completa sobre ninjas do universo Naruto, construída passo a passo com Spring Boot
 
-<div align="center" width="100%">
-    
-</div>
-
-<div align="center">
-
-![](https://img.shields.io/badge/Autor-Wesley%20Oliveira%20Santos-brightgreen)
-![](https://img.shields.io/badge/Language-Java%2021-brightgreen)
-![](https://img.shields.io/badge/Framework-Spring%20Boot%203.5.4-brightgreen)
-![](https://img.shields.io/badge/Build-Maven-blue)
-![](https://img.shields.io/badge/Database-H2-lightgrey)
-![](https://img.shields.io/badge/Mapper-MapStruct-orange)
-![](https://img.shields.io/badge/Docs-Springdoc%20OpenAPI-yellow)
-![](https://img.shields.io/badge/Testing-JUnit%205-red)
-![](https://img.shields.io/badge/Mock-MockMvc%20%26%20Mockito-critical)
-![](https://img.shields.io/badge/License-MIT-green)
-
-<p>
-  <a href="https://github.com/wesleyosantos91/workshop-ninja-api/graphs/contributors">
-    <img src="https://img.shields.io/github/contributors/wesleyosantos91/workshop-ninja-api" alt="contributors" />
-  </a>
-  <a href="">
-    <img src="https://img.shields.io/github/last-commit/wesleyosantos91/workshop-ninja-api" alt="last update" />
-  </a>
-  <a href="https://github.com/wesleyosantos91/workshop-ninja-api/network/members">
-    <img src="https://img.shields.io/github/forks/wesleyosantos91/workshop-ninja-api" alt="forks" />
-  </a>
-  <a href="https://github.com/wesleyosantos91/workshop-ninja-api/stargazers">
-    <img src="https://img.shields.io/github/stars/wesleyosantos91/workshop-ninja-api" alt="stars" />
-  </a>
-  <a href="https://github.com/wesleyosantos91/workshop-ninja-api/issues/">
-    <img src="https://img.shields.io/github/issues/wesleyosantos91/workshop-ninja-api" alt="open issues" />
-  </a>
-  <a href="https://github.com/wesleyosantos91/workshop-ninja-api/pulls/">
-    <img src="https://img.shields.io/github/issues-pr/wesleyosantos91/workshop-ninja-api" alt="pull requests" />
-  </a>
-  <a href="https://github.com/wesleyosantos91/workshop-ninja-api/blob/main/LICENSE">
-    <img src="https://img.shields.io/github/license/wesleyosantos91/workshop-ninja-api" alt="license" />
-  </a>
-</p>
+[![](https://img.shields.io/badge/Autor-Wesley%20Oliveira%20Santos-brightgreen)](https://www.linkedin.com/in/wesleyosantos91/)
+[![Java](https://img.shields.io/badge/Java-21-orange.svg)](https://openjdk.java.net/)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.4-brightgreen.svg)](https://spring.io/projects/spring-boot)
+[![Maven](https://img.shields.io/badge/Maven-3.6+-blue.svg)](https://maven.apache.org/)
+[![H2](https://img.shields.io/badge/Database-H2-lightblue.svg)](https://www.h2database.com/)
 
 </div>
 
-##  Pré - requisitos
+## 📋 Sobre o Projeto
 
-- [ `Java 21+` ](https://www.oracle.com/java/technologies/downloads/#java21)
-- [ `Apache Maven`](https://maven.apache.org/download.cgi)
+Este projeto é um **workshop prático** que ensina como criar uma API REST completa do zero usando Spring Boot. Você vai
+aprender construindo uma API sobre ninjas do universo Naruto, com todas as operações CRUD e melhores práticas de
+desenvolvimento.
 
+### 🎯 O que você vai aprender:
 
-Este projeto segue um padrão que separa **interface**, **domínio** e **infraestrutura**, com módulos *cross-cutting* (métricas, validação, aspectos) e versionamento da API.
+- ✅ Configuração de projeto Spring Boot
+- ✅ Banco de dados H2 (em memória)
+- ✅ Entidades JPA e Repositories
+- ✅ DTOs e Mappers (MapStruct)
+- ✅ Services com lógica de negócio
+- ✅ Controllers REST
+- ✅ Tratamento de erros
+- ✅ Validações de entrada
+- ✅ Documentação com Swagger
 
----
+### 🛠️ Tecnologias Utilizadas:
 
-## 📂 Estrutura de Pastas
+- **Java 21** - Linguagem de programação
+- **Spring Boot 3.5.4** - Framework principal
+- **Spring Data JPA** - Persistência de dados
+- **H2 Database** - Banco de dados em memória
+- **MapStruct** - Mapeamento automático de objetos
+- **Bean Validation** - Validação de dados
+- **SpringDoc OpenAPI** - Documentação automática (Swagger)
+- **Maven** - Gerenciador de dependências
 
-```
-src/main/java/br/org/soujava/bsb/apidozero
-├── api/                      # Interface pública (HTTP)
-│   ├── exception/            # Tradução de exceções -> respostas HTTP
-│   └── v1/
-│       ├── controller/       # Endpoints REST
-│       ├── request/          # DTOs de entrada
-│       └── response/         # DTOs de saída
-│
-├── core/                     # Cross-cutting e utilitários
-│   ├── mapper/               # MapStruct / DTO <-> domínio
-│   └── validation/           # Validadores e grupos
-│
-├── domain/                   # Regras de negócio
-│   ├── entity/               # Entidades/JPA
-│   ├── exception/            # Exceções de negócio
-│   ├── model/                # Objetos de domínio (value objects, aggregates)
-│   ├── repository/           # Portas de persistência
-│   └── service/              # Casos de uso
-│
-├── infrastructure/           # Adaptações técnicas (portas externas)
-│   └── openapi/              # Config SpringDoc (Swagger)
-└── Application.java          # Bootstrap Spring Boot
-```
+## 🚀 Como Executar
 
----
+### Pré-requisitos:
 
-Este documento **principal** organiza o projeto em **9 etapas** para ensino passo a passo.  
-Cada etapa terá seu próprio arquivo com instruções detalhadas dentro de `docs/`.
+- Java 21 ou superior
+- Maven 3.6 ou superior (opcional, o projeto inclui Maven Wrapper)
+- Uma IDE (IntelliJ IDEA, Eclipse, VS Code)
 
-> Projeto base
->
-> - **GroupId**: `br.org.soujava.bsb`
-> - **ArtifactId**: `workshop-ninja-api`
-> - **Nome**: `apidozero`
-> - **Java**: 21
-> - **Descrição**: API RESTful de domínio ninja desenvolvida com Spring Boot — Workshop “Do Zero à API” SouJava Brasília
->
-> Dependências principais já no projeto:
-> - Spring Web, Spring Data JPA, H2, MapStruct, springdoc-openapi, Spring Boot Test
+### Executando a aplicação:
 
----
-
-## Como usar em aula
-
-1. **Apresente o Initializr**: mostre https://start.spring.io/ e demonstre como configurar um projeto idêntico ao do repositório (sem baixar nada, apenas para contextualizar).
-2. **Siga os steps**: peça para os alunos abrirem cada `docs/README_STEP_X.md` na ordem e executarem o que está descrito.
-3. **Código real**: os READMEs devem sempre usar **arquivos e nomes reais** do repo (nada inventado).
-4. **Validação constante**: ao final de cada etapa, há um **Checklist** com o que deve estar funcionando.
-
----
-
-## Índice das Etapas
-
-1. **[STEP 1 — Configuração Inicial](docs/README_STEP_1.md)**  
-   Gerar/explicar projeto via Initializr, `application.yml` fiel ao repo, subir com `./mvnw spring-boot:run`, validar `/h2` e Swagger UI.
-
-2. **[STEP 2 — Persistência (H2 + schema.sql + data.sql)](docs/README_STEP_2.md)**  
-   Configurar e explicar H2, DDL em `schema.sql` e carga inicial com `data.sql`. Validar via console H2.
-
-3. **[STEP 3 — Entidade e Repository](docs/README_STEP_3.md)**  
-   Documentar `NinjaEntity` e `NinjaRepository`, constraints e mapeamentos. Testes de repositório com H2 (`@DataJpaTest`).
-
-4. **[STEP 4 — DTOs](docs/README_STEP_4.md)**  
-   `NinjaRequest`, `NinjaQueryRequest`, `NinjaResponse` (payloads em **snake_case**). Trafego no Controller e mapeamento com MapStruct.
-
-5. **[STEP 5 — Service](docs/README_STEP_5.md)**  
-   `NinjaService` com operações `create`, `find`, `update`, `delete`, `search`. Testes unitários com Mockito.
-
-6. **[STEP 6 — Controller](docs/README_STEP_6.md)**  
-   Endpoints reais em `/v1/ninjas` (POST/GET/PUT/DELETE/GET paginado), exemplos `curl/httpie`, testes com `MockMvc`.
-
-7. **[STEP 7 — Tratamento de Erros](docs/README_STEP_7.md)**  
-   `ApiExceptionHandler`, payload de erro padronizado, testes de casos 400/404.
-
-8. **[STEP 8 — OpenAPI / Swagger](docs/README_STEP_8.md)**  
-   `OpenAPIConfig`, validação do Swagger UI (`/swagger-ui/index.html#/`), exemplos de schemas e responses.
-
-9. **[STEP 9 — Revisão Final & Próximos Passos](docs/README_STEP_9.md)**  
-   Checklist geral (app, Swagger, H2, testes verdes), troubleshooting e sugestões (Testcontainers, profiles, observabilidade).
-
----
-
-## Quick Start (do projeto já pronto)
+1. **Clone o repositório:**
 
 ```bash
-./mvnw spring-boot:run
-# ou
-./mvnw clean package
-java -jar target/*.jar
+git clone <url-do-repositorio>
+cd api-do-zero
 ```
 
-- H2 Console: `http://localhost:8080/h2`
-    - JDBC URL: `jdbc:h2:mem:naruto;MODE=MYSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE`
-    - user: `sa`
-- Swagger UI: `http://localhost:8080/swagger-ui/index.html#/`
+2. **Execute a aplicação:**
+
+```bash
+# No Windows:
+mvnw.cmd spring-boot:run
+
+# No Linux/Mac:
+./mvnw spring-boot:run
+```
+
+3. **Acesse as URLs:**
+
+- **API:** http://localhost:8080/api/v1/ninjas
+- **Swagger UI:** http://localhost:8080/swagger-ui.html
+- **H2 Console:** http://localhost:8080/h2
+    - URL JDBC: `jdbc:h2:mem:naruto`
+    - Username: `sa`
+    - Password: (deixe vazio)
+
+## 📚 Workshop - Guia Passo a Passo
+
+O workshop está dividido em 9 passos progressivos. Cada passo tem seu próprio README detalhado:
+
+| Passo  | Descrição                    | README                                     |
+|--------|------------------------------|--------------------------------------------|
+| **1**  | Configuração Inicial         | [README_STEP_1.md](docs/README_STEP_1.md)  |
+| **2**  | Banco de Dados (H2 + SQL)    | [README_STEP_2.md](docs/README_STEP_2.md)  |
+| **3**  | Entity e Repository          | [README_STEP_3.md](docs/README_STEP_3.md)  |
+| **4**  | DTOs e Mapper                | [README_STEP_4.md](docs/README_STEP_4.md)  |
+| **5**  | Service (Lógica de Negócio)  | [README_STEP_5.md](docs/README_STEP_5.md)  |
+| **6**  | Controller (Endpoints REST)  | [README_STEP_6.md](docs/README_STEP_6.md)  |
+| **7**  | Tratamento de Erros          | [README_STEP_7.md](docs/README_STEP_7.md)  |
+| **8**  | Validações (Bean Validation) | [README_STEP_8.md](docs/README_STEP_8.md)  |
+| **9**  | Documentação (Swagger)       | [README_STEP_9.md](docs/README_STEP_9.md)  |
+| **10** | Revisão Final                | [README_STEP_9.md](docs/README_STEP_10.md) |
+
+### 🎓 Como seguir o workshop:
+
+1. Leia cada README na ordem
+2. Implemente o código de cada passo
+3. Teste as funcionalidades
+4. Passe para o próximo passo
+
+## 🥷 API Endpoints
+
+### Ninjas CRUD:
+
+- **GET** `/api/v1/ninjas` - Lista todos os ninjas
+- **GET** `/api/v1/ninjas/{id}` - Busca ninja por ID
+- **GET** `/api/v1/ninjas/search` - Busca com filtros
+- **POST** `/api/v1/ninjas` - Cria novo ninja
+- **PUT** `/api/v1/ninjas/{id}` - Atualiza ninja
+- **DELETE** `/api/v1/ninjas/{id}` - Deleta ninja
+
+### Exemplo de JSON (Ninja):
+
+```json
+{
+  "id": 1,
+  "nome": "Naruto Uzumaki",
+  "vila": "Konoha",
+  "cla": "Uzumaki",
+  "rank": "Genin",
+  "chakra_tipo": "Vento",
+  "especialidade": "Ninjutsu",
+  "kekkei_genkai": "Rasengan",
+  "status": "Ativo",
+  "nivel_forca": 85,
+  "data_registro": "2023-01-01"
+}
+```
+
+## 🧪 Testando a API
+
+### Usando curl:
+
+```bash
+# Listar todos os ninjas
+curl http://localhost:8080/api/v1/ninjas
+
+# Buscar ninja específico
+curl http://localhost:8080/api/v1/ninjas/1
+
+# Criar novo ninja
+curl -X POST http://localhost:8080/api/v1/ninjas \
+  -H "Content-Type: application/json" \
+  -d '{
+    "nome": "Meu Ninja",
+    "vila": "Konoha",
+    "rank": "Genin",
+    "chakra_tipo": "Fogo"
+  }'
+
+# Buscar com filtros
+curl "http://localhost:8080/api/v1/ninjas/search?vila=Konoha&rank=Genin"
+```
+
+### Usando Swagger UI:
+
+1. Acesse: http://localhost:8080/swagger-ui.html
+2. Explore e teste todos os endpoints diretamente no navegador
+
+## 🏗️ Arquitetura do Projeto
+
+```
+src/main/java/br/org/soujava/bsb/api/
+├── api/                    # Camada de apresentação (Controllers, DTOs)
+│   ├── exception/          # Tratamento global de erros
+│   └── v1/                 # Versão 1 da API
+│       ├── controller/     # Controllers REST
+│       ├── request/        # DTOs de entrada
+│       └── response/       # DTOs de saída
+├── core/                   # Utilitários e configurações
+│   └── mapper/             # Mappers (MapStruct)
+├── domain/                 # Camada de domínio (lógica de negócio)
+│   ├── entity/             # Entidades JPA
+│   ├── repository/         # Repositories
+│   ├── service/            # Services
+│   └── exception/          # Exceções de negócio
+└── infrastructure/         # Configurações de infraestrutura
+    └── openapi/            # Configuração do Swagger
+```
+
+## 💡 Conceitos Aprendidos
+
+### Padrões de Arquitetura:
+
+- **MVC** (Model-View-Controller)
+- **Repository Pattern**
+- **DTO Pattern**
+- **Service Layer Pattern**
+
+### Boas Práticas:
+
+- Separação de responsabilidades
+- Tratamento centralizado de erros
+- Validação de dados de entrada
+- Documentação automática
+- Mapeamento automático de objetos
+
+## 🎯 Próximos Passos (após completar o workshop)
+
+- 🔒 **Segurança:** Spring Security + JWT
+- 🗄️ **Banco Real:** PostgreSQL com Docker
+- ✅ **Testes:** JUnit + Mockito + Testcontainers
+- 📊 **Monitoramento:** Spring Actuator
+- 🚀 **Deploy:** Docker + Cloud
+
+## 👥 Comunidade
+
+- **SouJava Brasília:** [Site oficial](https://soujava.org.br/)
+- **WhatsAPP:** [Organização SouJava BSB](https://chat.whatsapp.com/J7OkMG4s9V8Gc8YQgnNgnz)
+- **Meetups:** Participe dos nossos encontros presenciais e online
+
+## 📄 Licença
+
+Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
 
 ---
 
-## Estrutura esperada dos READMEs (por etapa)
-
-Cada `docs/README_STEP_X.md` deve conter:
-1. **Objetivo**
-2. **Arquivos criados/editados (caminhos reais)**
-3. **Explicação conceitual** (tom acadêmico)
-4. **Trechos de código reais** (copiados do repo)
-5. **Como rodar e validar** (comandos + URLs)
-6. **Testes** (o que cobrem e como rodar: `./mvnw test`)
-7. **Erros comuns & soluções**
-8. **Resultados esperados / evidências**
-
----
-
-
+<div align="center">
+  <p>Feito com ❤️ para a comunidade Java por <strong>SouJava Brasília</strong></p>
+  <p>⭐ Se este projeto te ajudou, considere dar uma estrela!</p>
+</br>
 <a href="https://www.linkedin.com/in/wesleyosantos91/" target="_blank">
   <img src="https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white" target="_blank" />
 </a>
 
-
+</br>
 <b>Developed by Wesley Oliveira Santos</b>
----
+</div>

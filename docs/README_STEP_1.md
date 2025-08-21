@@ -1,132 +1,86 @@
-# README_STEP_1 — Configuração Inicial (alinhado ao projeto)
+# Passo 1 - Configuração Inicial
 
-## Objetivo
-Subir a aplicação com a configuração **exata** do repositório, apresentar o **Spring Initializr** aos alunos, e validar rapidamente **H2 Console** e **Swagger UI**.
+## O que vamos fazer
+Vamos configurar o projeto Spring Boot básico com as dependências essenciais e testar se está funcionando.
 
----
+## 1) Conhecendo o Spring Initializr
 
-## 1) Mostrar o Spring Initializr em aula
-Abra **https://start.spring.io/** e configure (apenas demonstração, sem baixar nada agora):
+O Spring Initializr (https://start.spring.io/) é uma ferramenta que cria projetos Spring Boot automaticamente. 
 
-- **Project:** Maven
-- **Language:** Java
-- **Spring Boot:** versão estável compatível com Java 21
-- **Project Metadata**
-  - **Group:** `br.org.soujava.bsb`
-  - **Artifact:** `workshop-ninja-api`
-  - **Name:** `apidozero`
-  - **Description:** `API RESTful de domínio ninja desenvolvida com Spring Boot - Workshop "Do Zero à API" SouJava Brasília`
-  - **Package name:** (sua preferência, ex.: `br.org.soujava.bsb.workshopninjaapi`)
-  - **Packaging:** Jar
-  - **Java:** **21**
-- **Dependencies:**
-  - Spring Web
-  - Spring Data JPA
-  - H2 Database
+Para este workshop, você configuraria assim:
 
-> **Observações didáticas**
-> - **MapStruct** e **springdoc-openapi** não estão na lista do Initializr — ensine a turma a adicionar no `pom.xml` após a geração.
-> - Nosso repo **já tem** essas dependências, então aqui é só para contextualizar o processo e reforçar os metadados de projeto.
+- **Projeto:** Maven (gerenciador de dependências)
+- **Linguagem:** Java
+- **Spring Boot:** 3.5.4
+- **Java:** 21
+- **Dependências iniciais:**
+  - Spring Web (para criar APIs REST)
+  - Spring Data JPA (para trabalhar com banco de dados)
+  - H2 Database (banco de dados em memória)
 
----
+## 2) Dependências do Step 1
 
-## 2) Dependências existentes no projeto
-O `pom.xml` do repositório já inclui:
-- `spring-boot-starter-web`
-- `spring-boot-starter-data-jpa`
-- `com.h2database:h2` (runtime)
-- `org.mapstruct:mapstruct` e `org.mapstruct:mapstruct-processor`
-- `org.springdoc:springdoc-openapi-starter-webmvc-ui`
-- `spring-boot-starter-test` (test)
+Neste primeiro passo, vamos usar apenas as dependências essenciais:
 
-> Dica: em projetos novos, configure o `mapstruct-processor` como `annotationProcessor` no `maven-compiler-plugin`. Aqui manteremos **fiel ao repo**.
+- **Spring Web** - para criar endpoints REST
+- **Spring Data JPA** - para acessar o banco de dados
+- **H2 Database** - banco de dados temporário (só existe na memória)
 
----
+**Outras dependências serão adicionadas nos próximos passos:**
+- MapStruct (Step 4 - para conversão automática entre objetos)
+- SpringDoc OpenAPI (Step 8 - para documentação Swagger)
+- Bean Validation (Step 8 - para validações)
 
-## 3) `application.yml` (usar exatamente este do projeto)
+## 3) Configuração do banco H2
 
-Coloque este arquivo em `src/main/resources/application.yml`:
+O arquivo `application.yml` já está configurado com:
 
 ```yaml
-server:
-  address: localhost
-  port: 8080
-  ssl:
-    enabled: false
 spring:
-  application:
-    name: api-do-zero
   datasource:
-    url: jdbc:h2:mem:naruto;MODE=MYSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    url: jdbc:h2:mem:naruto
+    driverClassName: org.h2.Driver
     username: sa
-    password:
-    driver-class-name: org.h2.Driver
+    password: 
   h2:
     console:
       enabled: true
       path: /h2
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: none
   sql:
     init:
-      mode: always       # executa schema.sql e data.sql no startup
-      platform: h2       # habilita sufixos -h2 se quiser
-  jpa:
-    hibernate:
-      ddl-auto: none     # não deixe o Hibernate criar/alterar tabelas
-    database-platform: org.hibernate.dialect.H2Dialect
-
-
+      mode: always
 ```
 
-**Por que assim?**
-- `ddl-auto: none` → deixa o **`schema.sql`** (DDL) mandar no banco.
-- `sql.init.mode: always` → executa `schema.sql` e `data.sql` no startup.
-- H2 Console habilitado em `/h2` para inspeção rápida.
+**O que isso significa:**
+- Banco H2 em memória chamado "naruto"
+- Console H2 habilitado em `/h2`
+- Não gera tabelas automaticamente (`ddl-auto: none`)
+- Executa sempre os arquivos SQL de inicialização
 
----
+## 4) Executando o projeto
 
-## 4) Rodando o projeto
+1. Abra o terminal na pasta do projeto
+2. Execute: `./mvnw spring-boot:run` (Linux/Mac) ou `mvnw.cmd spring-boot:run` (Windows)
+3. Aguarde até ver "Started Application"
 
-Na raiz do projeto:
+## 5) Testando se funcionou
 
-```bash
-./mvnw spring-boot:run
-```
+Acesse no navegador:
+- **Aplicação:** http://localhost:8080
+- **H2 Console:** http://localhost:8080/h2
 
-Opcionalmente, empacote e rode o JAR:
+### Para acessar o H2 Console:
+- URL JDBC: `jdbc:h2:mem:naruto`
+- Username: `sa`
+- Password: (deixe vazio)
 
-```bash
-./mvnw clean package
-java -jar target/*.jar
-```
+**Neste momento você verá:**
+- Aplicação rodando (mas ainda sem endpoints)
+- Console H2 funcionando (mas sem tabelas ainda)
 
----
-
-## 5) Validações rápidas
-
-- **H2 Console:** `http://localhost:8080/h2`
-  - JDBC URL: `jdbc:h2:mem:naruto;MODE=MYSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE`
-  - user: `sa` (sem senha)
-- **Swagger UI:** `http://localhost:8080/swagger-ui/index.html#/`
-
-> Se a UI não abrir agora, validaremos no **STEP 8** a configuração do `springdoc` e do `OpenAPIConfig` (se houver).
-
----
-
-## 6) Checklist do STEP 1
-- [ ] Projeto compila e sobe com `./mvnw spring-boot:run`
-- [ ] `application.yml` igual ao do repositório (H2, JPA, SQL init)
-- [ ] H2 Console acessível em `/h2`
-- [ ] Swagger UI acessível (ou confirmado para ver no STEP 8)
-
----
-
-## 7) Erros comuns & soluções
-- **Porta 8080 ocupada:** altere `server.port` no `application.yml` (ex.: `8081`).
-- **H2 Console 404:** confirme `spring.h2.console.enabled: true` e `path: /h2`.
-- **`schema.sql`/`data.sql` não executam:** verifique `spring.sql.init.mode: always` e os arquivos em `src/main/resources`.
-- **Driver H2 ausente:** confira a dependência `com.h2database:h2` no `pom.xml`.
-
----
-
-## 8) Próximo passo
-Ir para o **[STEP 2 — Persistência (H2 + schema.sql + data.sql)](README_STEP_2.md)** para criar/validar as tabelas e seeds.
+## Próximo passo
+No próximo passo vamos criar as tabelas do banco de dados e inserir alguns dados de exemplo usando `schema.sql` e `data.sql`. **[STEP 2 — Persistência (H2 + schema.sql + data.sql)](README_STEP_2.md)**

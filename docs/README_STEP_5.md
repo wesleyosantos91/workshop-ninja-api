@@ -1,80 +1,204 @@
-# README_STEP_5 — Service (create, find, update, delete, search)
+# Passo 5 - Service (Lógica de Negócio)
 
-## Objetivo
-Documentar e testar a **camada de serviço** responsável pela regra de negócio da entidade Ninja: `create`, `findById`, `update`, `delete` e `search` — **exatamente como implementado no projeto**.
+## O que vamos fazer
+Vamos criar o `NinjaService` que contém toda a lógica de negócio: criar, buscar, atualizar e deletar ninjas.
 
----
+## 1) O que é um Service?
 
-## 1) Arquivo real do projeto
-- **Service:** `src/main/java/br/org/soujava/bsb/api/domain/service/NinjaService.java`
+O **Service** é onde fica a lógica da sua aplicação:
+- Regras de negócio
+- Validações
+- Operações CRUD (Create, Read, Update, Delete)
+- Comunicação com o Repository
 
-Métodos reais (recortes):
+**Arquitetura em camadas:**
+- **Controller** → recebe requisições HTTP
+- **Service** → processa a lógica de negócio  
+- **Repository** → acessa o banco de dados
+
+## 2) Criando uma exceção personalizada
+
+Primeiro, vamos criar uma exceção para quando não encontrarmos um ninja.
+
+Crie `src/main/java/br/org/soujava/bsb/api/domain/exception/ResourceNotFoundException.java`:
+
 ```java
-public NinjaService(NinjaRepository respository) {
-    this.respository = respository;
-}
+package br.org.soujava.bsb.api.domain.exception;
 
-public NinjaEntity create(NinjaRequest ninjaRequest) {
-    return respository.save(MAPPER.toEntity(ninjaRequest));
-}
+public class ResourceNotFoundException extends RuntimeException {
 
-public NinjaEntity findById(Integer id) throws ResourceNotFoundException {
-    return respository.findById(id)
-            .orElseThrow(() -> new ResourceNotFoundException(format("Not found regitstry with code {0}", id)));
-}
+    public ResourceNotFoundException(String message) {
+        super(message);
+    }
 
-public Page<NinjaEntity> search(NinjaQueryRequest queryRequest, Pageable pageable) {
-    final var ninjaEntityExample = Example.of(MAPPER.toEntity(queryRequest));
-    return respository.findAll(ninjaEntityExample, pageable);
-}
-
-public NinjaEntity update(Integer id, NinjaRequest request) throws ResourceNotFoundException {
-    final var ninja = MAPPER.toEntity(request, findById(id));
-    return respository.save(ninja);
-}
-
-public void delete(Integer id) throws ResourceNotFoundException {
-    final var ninjaEntity = findById(id);
-    respository.delete(ninjaEntity);
+    public ResourceNotFoundException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }
 ```
-> Observações:
-> - O service utiliza o **`NinjaMapper`** (`MAPPER`) para converter entre DTOs e entidade.
-> - `findById`, `update`, `delete` lançam `ResourceNotFoundException` quando o ID não existe.
-> - `search` usa `Example.of(...)` com um **NinjaEntity** gerado a partir do `NinjaQueryRequest` (consulta por exemplo).
 
----
+## 3) Criando o NinjaService
 
-## 2) Casos de uso e regras básicas
-- **create**: recebe `NinjaRequest`, converte para `NinjaEntity` e persiste (`save`).  
-- **findById**: consulta por ID; se não encontrar, lança `ResourceNotFoundException`.  
-- **update**: carrega o ninja pelo ID (ou erro 404), aplica campos de `NinjaRequest` via mapper e persiste.  
-- **delete**: verifica existência e remove.  
-- **search**: aplica filtros de `NinjaQueryRequest` via `Example` + `Pageable`.
-
-> Regras adicionais como **duplicidade**, **validações avançadas** e **autorização** podem ser introduzidas conforme evolução.
-
----
-
-## 3) Testes unitários (Mockito + JUnit 5)
-
-Crie `src/test/java/.../domain/service/NinjaServiceTest.java`:
+Crie `src/main/java/br/org/soujava/bsb/api/domain/service/NinjaService.java`:
 
 ```java
 package br.org.soujava.bsb.api.domain.service;
 
 import br.org.soujava.bsb.api.api.v1.request.NinjaQueryRequest;
 import br.org.soujava.bsb.api.api.v1.request.NinjaRequest;
+import br.org.soujava.bsb.api.api.v1.response.NinjaResponse;
+import br.org.soujava.bsb.api.core.mapper.NinjaMapper;
+import br.org.soujava.bsb.api.domain.entity.NinjaEntity;
+import br.org.soujava.bsb.api.domain.exception.ResourceNotFoundException;
+import br.org.soujava.bsb.api.domain.repository.NinjaRepository;
+import org.springframework.data.domain.Example;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+@Service
+public class NinjaService {
+
+    private final NinjaRepository ninjaRepository;
+    private final NinjaMapper ninjaMapper;
+
+    public NinjaService(NinjaRepository ninjaRepository, NinjaMapper ninjaMapper) {
+        this.ninjaRepository = ninjaRepository;
+        this.ninjaMapper = ninjaMapper;
+    }
+
+    // 1) BUSCAR TODOS OS NINJAS
+    public List<NinjaResponse> findAll() {
+        return ninjaRepository.findAll()
+                .stream()
+                .map(ninjaMapper::entityToResponse)
+                .toList();
+    }
+
+    // 2) BUSCAR NINJA POR ID
+    public NinjaResponse findById(Integer id) {
+        NinjaEntity ninja = ninjaRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Ninja não encontrado com ID: " + id));
+        
+        return ninjaMapper.entityToResponse(ninja);
+    }
+
+    // 3) BUSCAR COM FILTROS
+    public List<NinjaResponse> findByQuery(NinjaQueryRequest query) {
+        NinjaEntity example = ninjaMapper.queryToEntity(query);
+        Example<NinjaEntity> ninjaExample = Example.of(example);
+        
+        return ninjaRepository.findAll(ninjaExample)
+                .stream()
+                .map(ninjaMapper::entityToResponse)
+                .toList();
+    }
+
+    // 4) CRIAR NOVO NINJA
+    public NinjaResponse create(NinjaRequest request) {
+        NinjaEntity ninja = ninjaMapper.requestToEntity(request);
+        NinjaEntity savedNinja = ninjaRepository.save(ninja);
+        
+        return ninjaMapper.entityToResponse(savedNinja);
+    }
+
+    // 5) ATUALIZAR NINJA EXISTENTE
+    public NinjaResponse update(Integer id, NinjaRequest request) {
+        // Verifica se o ninja existe
+        NinjaEntity existingNinja = ninjaRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Ninja não encontrado com ID: " + id));
+        
+        // Converte o request para entity
+        NinjaEntity ninja = ninjaMapper.requestToEntity(request);
+        ninja.setId(id); // Mantém o ID original
+        
+        // Salva e retorna
+        NinjaEntity updatedNinja = ninjaRepository.save(ninja);
+        return ninjaMapper.entityToResponse(updatedNinja);
+    }
+
+    // 6) DELETAR NINJA
+    public void deleteById(Integer id) {
+        // Verifica se o ninja existe antes de deletar
+        if (!ninjaRepository.existsById(id)) {
+            throw new ResourceNotFoundException("Ninja não encontrado com ID: " + id);
+        }
+        
+        ninjaRepository.deleteById(id);
+    }
+}
+```
+
+## 4) Entendendo o código
+
+**Injeção de dependência:**
+```java
+private final NinjaRepository ninjaRepository;
+private final NinjaMapper ninjaMapper;
+```
+O Spring injeta automaticamente essas dependências.
+
+**Busca com Example:**
+```java
+Example<NinjaEntity> ninjaExample = Example.of(example);
+```
+O `Example` permite buscar registros que "parecem" com o objeto exemplo (campos não nulos são usados como filtro).
+
+**Tratamento de erro:**
+```java
+.orElseThrow(() -> new ResourceNotFoundException("Ninja não encontrado"));
+```
+Se não encontrar o ninja, lança nossa exceção personalizada.
+
+**Stream para conversão:**
+```java
+.stream().map(ninjaMapper::entityToResponse).toList()
+```
+Converte cada `NinjaEntity` em `NinjaResponse`.
+
+## 5) Testando o Service com NinjaServiceTest
+
+Agora vamos criar testes unitários para validar se nosso Service está funcionando corretamente. Testes de Service são diferentes dos testes de Repository - aqui usamos **Mocks** para simular as dependências.
+
+### 5.1) Por que testar o Service?
+
+**Testes de Service validam:**
+- ✅ Lógica de negócio funciona corretamente
+- ✅ Tratamento de exceções está adequado
+- ✅ Interações com Repository acontecem como esperado
+- ✅ Conversões entre DTOs e Entities estão corretas
+
+### 5.2) Diferença entre testes de Repository e Service
+
+| **Repository Test** | **Service Test** |
+|-------------------|------------------|
+| Testa integração com banco | Testa lógica de negócio |
+| Usa banco H2 real | Usa mocks das dependências |
+| `@DataJpaTest` | `@ExtendWith(MockitoExtension.class)` |
+| Carrega contexto JPA | Não carrega contexto Spring |
+
+### 5.3) Criando a classe de teste
+
+Crie o arquivo `src/test/java/br/org/soujava/bsb/api/domain/service/NinjaServiceTest.java`:
+
+```java
+package br.org.soujava.bsb.api.domain.service;
+
+import br.org.soujava.bsb.api.api.v1.request.NinjaQueryRequest;
+import br.org.soujava.bsb.api.api.v1.request.NinjaRequest;
+import br.org.soujava.bsb.api.api.v1.response.NinjaResponse;
+import br.org.soujava.bsb.api.core.mapper.NinjaMapper;
 import br.org.soujava.bsb.api.domain.entity.NinjaEntity;
 import br.org.soujava.bsb.api.domain.exception.ResourceNotFoundException;
 import br.org.soujava.bsb.api.domain.repository.NinjaRepository;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.*;
+import org.springframework.data.domain.Example;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -83,136 +207,341 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
+@DisplayName("Ninja Service")
 class NinjaServiceTest {
 
     @Mock
-    private NinjaRepository repository;
+    private NinjaRepository ninjaRepository;
+
+    @Mock
+    private NinjaMapper ninjaMapper;
 
     @InjectMocks
-    private NinjaService service;
+    private NinjaService ninjaService;
 
-    private NinjaEntity sample;
+    private NinjaEntity ninjaEntity;
+    private NinjaRequest ninjaRequest;
+    private NinjaResponse ninjaResponse;
+    private NinjaQueryRequest ninjaQueryRequest;
 
     @BeforeEach
     void setUp() {
-        sample = new NinjaEntity();
-        sample.setId(1);
-        sample.setNome("Naruto Uzumaki");
-        sample.setVila("Konoha");
-        sample.setCla("Uzumaki");
-        sample.setRank("Genin");
-        sample.setChakraTipo("Vento");
-        sample.setEspecialidade("Ninjutsu");
-        sample.setKekkeiGenkai(null);
-        sample.setStatus("Ativo");
-        sample.setNivelForca(85);
-        sample.setDataRegistro(LocalDate.parse("2025-08-20"));
-    }
+        // Preparar dados de teste que serão reutilizados
+        ninjaEntity = new NinjaEntity();
+        ninjaEntity.setId(1);
+        ninjaEntity.setNome("Naruto Uzumaki");
+        ninjaEntity.setVila("Konoha");
+        ninjaEntity.setCla("Uzumaki");
+        ninjaEntity.setRank("Hokage");
+        ninjaEntity.setChakraTipo("Vento");
+        ninjaEntity.setEspecialidade("Ninjutsu");
+        ninjaEntity.setKekkeiGenkai("Kurama (Bijuu)");
+        ninjaEntity.setStatus("Ativo");
+        ninjaEntity.setNivelForca(98);
+        ninjaEntity.setDataRegistro(LocalDate.now());
 
-    @Test
-    void create_deveSalvarEretornarEntidade() {
-        // Arrange
-        NinjaRequest req = new NinjaRequest(
-            "Naruto Uzumaki","Konoha","Uzumaki","Genin",
-            "Vento","Ninjutsu",null,"Ativo",85, LocalDate.parse("2025-08-20")
-        );
-        when(repository.save(any(NinjaEntity.class))).thenAnswer(inv -> {
-            NinjaEntity e = inv.getArgument(0);
-            e.setId(1);
-            return e;
-        });
-
-        // Act
-        NinjaEntity out = service.create(req);
-
-        // Assert
-        assertThat(out.getId()).isNotNull();
-        assertThat(out.getNome()).isEqualTo("Naruto Uzumaki");
-        verify(repository, times(1)).save(any(NinjaEntity.class));
-    }
-
-    @Test
-    void findById_quandoExiste_retorna() throws Exception {
-        when(repository.findById(1)).thenReturn(Optional.of(sample));
-
-        NinjaEntity out = service.findById(1);
-
-        assertThat(out.getNome()).isEqualTo("Naruto Uzumaki");
-        verify(repository).findById(1);
-    }
-
-    @Test
-    void findById_quandoNaoExiste_lancaNotFound() {
-        when(repository.findById(999)).thenReturn(Optional.empty());
-
-        assertThatThrownBy(() -> service.findById(999))
-            .isInstanceOf(ResourceNotFoundException.class);
-    }
-
-    @Test
-    void update_quandoExiste_atualizaCampos() throws Exception {
-        when(repository.findById(1)).thenReturn(Optional.of(sample));
-        when(repository.save(any(NinjaEntity.class))).thenAnswer(inv -> inv.getArgument(0));
-
-        NinjaRequest req = new NinjaRequest(
-            "Naruto Uzumaki","Konoha","Uzumaki","Chunin",
-            "Vento","Ninjutsu",null,"Ativo",90, LocalDate.parse("2025-08-20")
+        ninjaRequest = new NinjaRequest(
+                "Naruto Uzumaki",
+                "Konoha",
+                "Uzumaki",
+                "Hokage",
+                "Vento",
+                "Ninjutsu",
+                "Kurama (Bijuu)",
+                "Ativo",
+                98,
+                LocalDate.now()
         );
 
-        NinjaEntity atualizado = service.update(1, req);
+        ninjaResponse = new NinjaResponse(
+                1,
+                "Naruto Uzumaki",
+                "Konoha",
+                "Uzumaki",
+                "Hokage",
+                "Vento",
+                "Ninjutsu",
+                "Kurama (Bijuu)",
+                "Ativo",
+                98,
+                LocalDate.now()
+        );
 
-        assertThat(atualizado.getRank()).isEqualTo("Chunin");
-        assertThat(atualizado.getNivelForca()).isEqualTo(90);
-        verify(repository).save(any(NinjaEntity.class));
+        ninjaQueryRequest = new NinjaQueryRequest(
+                "Naruto",
+                "Konoha",
+                "Hokage",
+                "Vento",
+                "Ativo"
+        );
     }
 
     @Test
-    void delete_quandoExiste_remove() throws Exception {
-        when(repository.findById(1)).thenReturn(Optional.of(sample));
+    @DisplayName("Deve criar ninja com sucesso")
+    void deveCriarNinjaComSucesso() {
+        // Given: configurar comportamento dos mocks
+        when(ninjaMapper.requestToEntity(ninjaRequest)).thenReturn(ninjaEntity);
+        when(ninjaRepository.save(any(NinjaEntity.class))).thenReturn(ninjaEntity);
+        when(ninjaMapper.entityToResponse(ninjaEntity)).thenReturn(ninjaResponse);
 
-        service.delete(1);
+        // When: chamar create
+        NinjaResponse resultado = ninjaService.create(ninjaRequest);
 
-        verify(repository).delete(any(NinjaEntity.class));
+        // Then: deve retornar ninja criado
+        assertThat(resultado).isNotNull();
+        assertThat(resultado.id()).isEqualTo(1);
+        assertThat(resultado.nome()).isEqualTo("Naruto Uzumaki");
+        assertThat(resultado.vila()).isEqualTo("Konoha");
+
+        // Verificar que os mocks foram chamados corretamente
+        verify(ninjaMapper, times(1)).requestToEntity(ninjaRequest);
+        verify(ninjaRepository, times(1)).save(any(NinjaEntity.class));
+        verify(ninjaMapper, times(1)).entityToResponse(ninjaEntity);
     }
 
     @Test
-    void search_retornaPaginaComFiltros() {
-        NinjaQueryRequest query = new NinjaQueryRequest("nar", null, null, null, null, null, null, null, null, null);
-        Pageable pageable = PageRequest.of(0, 10, Sort.by("nome").ascending());
-        Page<NinjaEntity> page = new PageImpl<>(List.of(sample), pageable, 1);
+    @DisplayName("Deve buscar ninja por ID existente com sucesso")
+    void deveBuscarNinjaPorIdExistenteComSucesso() {
+        // Given: repository retornará o ninja
+        when(ninjaRepository.findById(1)).thenReturn(Optional.of(ninjaEntity));
+        when(ninjaMapper.entityToResponse(ninjaEntity)).thenReturn(ninjaResponse);
 
-        when(repository.findAll(any(Example.class), any(Pageable.class))).thenReturn(page);
+        // When: buscar ninja por ID
+        NinjaResponse resultado = ninjaService.findById(1);
 
-        Page<NinjaEntity> result = service.search(query, pageable);
+        // Then: deve retornar o ninja encontrado
+        assertThat(resultado).isNotNull();
+        assertThat(resultado.id()).isEqualTo(1);
+        assertThat(resultado.nome()).isEqualTo("Naruto Uzumaki");
 
-        assertThat(result.getContent()).hasSize(1);
-        assertThat(result.getContent().get(0).getNome()).isEqualTo("Naruto Uzumaki");
-        verify(repository).findAll(any(Example.class), any(Pageable.class));
+        // Verificar interações com mocks
+        verify(ninjaRepository, times(1)).findById(1);
+        verify(ninjaMapper, times(1)).entityToResponse(ninjaEntity);
+    }
+
+    @Test
+    @DisplayName("Deve lançar exceção ao buscar ninja por ID inexistente")
+    void deveLancarExcecaoAoBuscarNinjaPorIdInexistente() {
+        // Given: repository retornará Optional vazio
+        when(ninjaRepository.findById(999)).thenReturn(Optional.empty());
+
+        // When/Then: deve lançar ResourceNotFoundException
+        assertThatThrownBy(() -> ninjaService.findById(999))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("Ninja não encontrado com ID: 999");
+
+        // Verificar que o repository foi chamado
+        verify(ninjaRepository, times(1)).findById(999);
+        // Verificar que o mapper NÃO foi chamado (ninja não encontrado)
+        verify(ninjaMapper, times(0)).entityToResponse(any());
+    }
+
+    @Test
+    @DisplayName("Deve buscar todos os ninjas com sucesso")
+    void deveBuscarTodosOsNinjasComSucesso() {
+        // Given: repository retornará lista de ninjas
+        List<NinjaEntity> ninjas = List.of(ninjaEntity);
+        when(ninjaRepository.findAll()).thenReturn(ninjas);
+        when(ninjaMapper.entityToResponse(ninjaEntity)).thenReturn(ninjaResponse);
+
+        // When: buscar todos
+        List<NinjaResponse> resultado = ninjaService.findAll();
+
+        // Then: deve retornar lista com ninjas
+        assertThat(resultado).hasSize(1);
+        assertThat(resultado.get(0).nome()).isEqualTo("Naruto Uzumaki");
+
+        // Verificar interações
+        verify(ninjaRepository, times(1)).findAll();
+        verify(ninjaMapper, times(1)).entityToResponse(ninjaEntity);
+    }
+
+    @Test
+    @DisplayName("Deve buscar ninjas com filtros usando Example")
+    void deveBuscarNinjasComFiltros() {
+        // Given: preparar mocks
+        NinjaEntity entityFiltro = new NinjaEntity();
+        entityFiltro.setNome("Naruto");
+        entityFiltro.setVila("Konoha");
+        
+        List<NinjaEntity> ninjas = List.of(ninjaEntity);
+        
+        when(ninjaMapper.queryToEntity(ninjaQueryRequest)).thenReturn(entityFiltro);
+        when(ninjaRepository.findAll(any(Example.class))).thenReturn(ninjas);
+        when(ninjaMapper.entityToResponse(ninjaEntity)).thenReturn(ninjaResponse);
+
+        // When: fazer busca com filtros
+        List<NinjaResponse> resultado = ninjaService.findByQuery(ninjaQueryRequest);
+
+        // Then: deve retornar resultados filtrados
+        assertThat(resultado).hasSize(1);
+        assertThat(resultado.get(0).nome()).isEqualTo("Naruto Uzumaki");
+
+        // Verificar interações
+        verify(ninjaMapper, times(1)).queryToEntity(ninjaQueryRequest);
+        verify(ninjaRepository, times(1)).findAll(any(Example.class));
+        verify(ninjaMapper, times(1)).entityToResponse(ninjaEntity);
+    }
+
+    @Test
+    @DisplayName("Deve atualizar ninja existente com sucesso")
+    void deveAtualizarNinjaExistenteComSucesso() {
+        // Given: ninja existe
+        when(ninjaRepository.findById(1)).thenReturn(Optional.of(ninjaEntity));
+        when(ninjaMapper.requestToEntity(ninjaRequest)).thenReturn(ninjaEntity);
+        when(ninjaRepository.save(any(NinjaEntity.class))).thenReturn(ninjaEntity);
+        when(ninjaMapper.entityToResponse(ninjaEntity)).thenReturn(ninjaResponse);
+
+        // When: atualizar ninja
+        NinjaResponse resultado = ninjaService.update(1, ninjaRequest);
+
+        // Then: deve retornar ninja atualizado
+        assertThat(resultado).isNotNull();
+        assertThat(resultado.nome()).isEqualTo("Naruto Uzumaki");
+
+        // Verificar interações
+        verify(ninjaRepository, times(1)).findById(1);
+        verify(ninjaMapper, times(1)).requestToEntity(ninjaRequest);
+        verify(ninjaRepository, times(1)).save(any(NinjaEntity.class));
+        verify(ninjaMapper, times(1)).entityToResponse(ninjaEntity);
+    }
+
+    @Test
+    @DisplayName("Deve lançar exceção ao tentar atualizar ninja inexistente")
+    void deveLancarExcecaoAoTentarAtualizarNinjaInexistente() {
+        // Given: ninja não existe
+        when(ninjaRepository.findById(999)).thenReturn(Optional.empty());
+
+        // When/Then: deve lançar exceção
+        assertThatThrownBy(() -> ninjaService.update(999, ninjaRequest))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("Ninja não encontrado com ID: 999");
+
+        // Verificar que apenas findById foi chamado
+        verify(ninjaRepository, times(1)).findById(999);
+        verify(ninjaRepository, times(0)).save(any());
+    }
+
+    @Test
+    @DisplayName("Deve deletar ninja existente com sucesso")
+    void deveDeletarNinjaExistenteComSucesso() {
+        // Given: ninja existe
+        when(ninjaRepository.existsById(1)).thenReturn(true);
+
+        // When: deletar ninja
+        ninjaService.deleteById(1);
+
+        // Then: deve chamar deleteById no repository
+        verify(ninjaRepository, times(1)).existsById(1);
+        verify(ninjaRepository, times(1)).deleteById(1);
+    }
+
+    @Test
+    @DisplayName("Deve lançar exceção ao tentar deletar ninja inexistente")
+    void deveLancarExcecaoAoTentarDeletarNinjaInexistente() {
+        // Given: ninja não existe
+        when(ninjaRepository.existsById(999)).thenReturn(false);
+
+        // When/Then: deve lançar exceção
+        assertThatThrownBy(() -> ninjaService.deleteById(999))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("Ninja não encontrado com ID: 999");
+
+        // Verificar que deleteById NÃO foi chamado
+        verify(ninjaRepository, times(1)).existsById(999);
+        verify(ninjaRepository, times(0)).deleteById(999);
     }
 }
 ```
 
-> **Mock do Mapper?**  
-> O service usa o `MAPPER` estático do MapStruct. Nos testes acima, não precisamos mockar o mapper porque checamos apenas interações com o repositório e os efeitos finais; entretanto, se quiser isolar o mapper, considere extrair a dependência para injeção ou usar um `@Spy` com implementação gerada.
+### 5.4) Entendendo as anotações de teste
 
----
+**@ExtendWith(MockitoExtension.class)**
+- Habilita o uso do Mockito para criar mocks
+- Não carrega o contexto Spring (teste mais rápido)
 
-## 4) Como rodar os testes
-```bash
-./mvnw test
+**@Mock**
+- Cria um objeto "falso" (mock) da dependência
+- Permite controlar o comportamento do objeto
+
+**@InjectMocks**
+- Injeta os mocks automaticamente no objeto testado
+- Cria uma instância real do NinjaService com mocks injetados
+
+**@BeforeEach**
+- Executa antes de cada teste
+- Prepara dados que serão reutilizados
+
+### 5.5) Entendendo o Mockito
+
+**when().thenReturn()** - Define comportamento do mock:
+```java
+when(ninjaRepository.findById(1)).thenReturn(Optional.of(ninjaEntity));
+// Quando chamar findById(1), retorne Optional.of(ninjaEntity)
 ```
 
----
+**verify()** - Verifica se método foi chamado:
+```java
+verify(ninjaRepository, times(1)).findById(1);
+// Verifica que findById(1) foi chamado exatamente 1 vez
+```
 
-## 5) Checklist do STEP 5
-- [ ] Cobertura de testes para: `create`, `findById` (sucesso/404), `update`, `delete`, `search`
-- [ ] Verificação de interações com o `NinjaRepository`
-- [ ] Mensagem de `ResourceNotFoundException` adequada (pode ser validada também)
+**any()** - Aceita qualquer valor como parâmetro:
+```java
+verify(ninjaRepository).save(any(NinjaEntity.class));
+// Verifica que save foi chamado com qualquer NinjaEntity
+```
 
----
+### 5.6) Padrão AAA (Arrange-Act-Assert)
 
-## 6) Próximo passo
-Ir para **[STEP 6 — Controller](README_STEP_6.md)**: endpoints em `/v1/ninjas`, exemplos de chamadas `curl/httpie` e testes com `MockMvc`.
+Nossos testes seguem o padrão AAA:
+
+```java
+// Arrange (Given): Preparar mocks e dados
+when(ninjaRepository.findById(1)).thenReturn(Optional.of(ninjaEntity));
+
+// Act (When): Executar ação que queremos testar
+NinjaResponse resultado = ninjaService.findById(1);
+
+// Assert (Then): Verificar resultados e interações
+assertThat(resultado).isNotNull();
+verify(ninjaRepository).findById(1);
+```
+
+### 5.7) Executando os testes
+
+**No terminal:**
+```bash
+# Executa todos os testes
+./mvnw test
+
+# Executa apenas testes do Service
+./mvnw test -Dtest=NinjaServiceTest
+```
+
+### 5.8) O que cada teste valida
+
+1. **deveCriarNinjaComSucesso()** - Criação funcionando corretamente
+2. **deveBuscarNinjaPorIdExistenteComSucesso()** - Busca por ID válido
+3. **deveLancarExcecaoAoBuscarNinjaPorIdInexistente()** - Tratamento de ninja não encontrado
+4. **deveBuscarTodosOsNinjasComSucesso()** - Listagem completa
+5. **deveBuscarNinjasComFiltros()** - Busca com Example
+6. **deveAtualizarNinjaExistenteComSucesso()** - Atualização funcionando
+7. **deveLancarExcecaoAoTentarAtualizarNinjaInexistente()** - Atualização com ID inválido
+8. **deveDeletarNinjaExistenteComSucesso()** - Exclusão funcionando
+9. **deveLancarExcecaoAoTentarDeletarNinjaInexistente()** - Exclusão com ID inválido
+
+### 5.9) Benefícios dos testes com Mock
+
+✅ **Rápidos** - Não acessam banco de dados
+✅ **Isolados** - Testam apenas lógica do Service
+✅ **Confiáveis** - Controlam exatamente o comportamento das dependências
+✅ **Precisos** - Verificam interações específicas
+
+## Próximo passo
+Agora vamos criar o Controller, que vai expor os endpoints HTTP da nossa API. **[STEP 6 — Controller](README_STEP_6.md)**

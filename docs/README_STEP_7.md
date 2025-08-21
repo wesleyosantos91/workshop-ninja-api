@@ -1,126 +1,305 @@
-# README_STEP_7 — Tratamento de Erros (ApiExceptionHandler)
+# Passo 7 - Tratamento de Erros (RFC 9457 - Problem Details)
 
-## Objetivo
-Padronizar as respostas de erro com **`ApiExceptionHandler`**, usando **ProblemDetail** do Spring 6/Boot 3 e o wrapper `CustomProblemDetail` com lista de erros (`ErrorResponse`).
+## O que vamos fazer
+Vamos criar um tratamento global de erros seguindo o padrão RFC 9457 (Problem Details for HTTP APIs) para que nossa API retorne respostas de erro padronizadas e profissionais.
 
----
+## 1) Por que tratar erros com RFC 9457?
 
-## 1) Arquivos reais do projeto
-- `api/exception/ApiExceptionHandler.java` — [abrir](sandbox:/mnt/data/step7_refs/ApiExceptionHandler.java)
-- `api/v1/response/CustomProblemDetail.java` — [abrir](sandbox:/mnt/data/step7_refs/CustomProblemDetail.java)
-- `api/v1/response/ErrorResponse.java` — [abrir](sandbox:/mnt/data/step7_refs/ErrorResponse.java)
+**RFC 9457 - Problem Details for HTTP APIs** é um padrão que define como estruturar respostas de erro em APIs REST de forma consistente e útil.
 
----
+**Sem tratamento padronizado:**
+- Mensagens confusas e técnicas
+- Formatos diferentes para cada tipo de erro
+- Informações técnicas desnecessárias expostas
 
-## 2) Estratégia
-- Para **erros de validação** (`MethodArgumentNotValidException`), o handler cria um `CustomProblemDetail` com:
-  - `status` = 400, `title` = `Bad Request`
-  - `detail` com uma mensagem geral (i18n via `MessageSource`)
-  - `errors`: lista de `{ field, message_error }` (snake_case via Jackson)
-  - `timestamp` automático em `CustomProblemDetail`
-- Para **recurso não encontrado** (`ResourceNotFoundException`), retorna `ProblemDetail` 404 com `title = Not Found` e `detail` = mensagem da exceção.
+**Com RFC 9457:**
+- ✅ **Formato padronizado** - Estrutura consistente para todos os erros
+- ✅ **Informações úteis** - Detalhes claros sobre o problema
+- ✅ **Compatibilidade** - Padrão reconhecido internacionalmente
+- ✅ **Extensibilidade** - Permite adicionar campos customizados
 
-Trecho real (recortes):
-```java
-@ResponseStatus(HttpStatus.NOT_FOUND)
-@ExceptionHandler(ResourceNotFoundException.class)
-private ResponseEntity<ProblemDetail> handleResourceNotFound(..., ResourceNotFoundException ex) {
-    final ProblemDetail pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
-    pd.setTitle(HttpStatus.NOT_FOUND.getReasonPhrase());
-    return ResponseEntity.status(HttpStatus.NOT_FOUND).body(pd);
+## 2) Estrutura da RFC 9457
+
+A RFC 9457 define campos padronizados para respostas de erro:
+
+```json
+{
+  "type": "https://example.com/probs/out-of-credit",
+  "title": "You do not have enough credit.",
+  "status": 403,
+  "detail": "Your current balance is 30, but that costs 50.",
+  "instance": "/account/12345/msgs/abc"
 }
 ```
 
----
+**Campos principais:**
+- **type** - URI que identifica o tipo do problema
+- **title** - Resumo curto do problema
+- **status** - Código de status HTTP
+- **detail** - Explicação detalhada do problema
+- **instance** - URI que identifica onde o problema ocorreu
 
-## 3) Payloads de exemplo
+## 3) Implementação no Spring Boot
 
-### 3.1 404 — Not Found
+O Spring Boot 6+ tem suporte nativo à RFC 9457 através da classe `ProblemDetail`. Vamos implementar dois tipos de tratamento:
+
+### 3.1) Criando a classe ErrorResponse
+
+Primeiro, crie `src/main/java/br/org/soujava/bsb/api/api/v1/response/ErrorResponse.java`:
+
+```java
+package br.org.soujava.bsb.api.api.v1.response;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import com.fasterxml.jackson.databind.annotation.JsonNaming;
+
+@JsonInclude(JsonInclude.Include.NON_NULL)
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
+public record ErrorResponse(
+        String field,
+        String messageError) {
+}
+```
+
+### 3.2) Criando CustomProblemDetail para validações
+
+Para erros de validação com múltiplos campos, criamos uma versão customizada:
+
+Crie `src/main/java/br/org/soujava/bsb/api/api/v1/response/CustomProblemDetail.java`:
+
+```java
+package br.org.soujava.bsb.api.api.v1.response;
+
+import java.time.Instant;
+import java.util.List;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ProblemDetail;
+
+public class CustomProblemDetail extends ProblemDetail {
+
+    private static final String TIMESTAMP = "timestamp";
+
+    public CustomProblemDetail(HttpStatus status, String title, String detail, List<ErrorResponse> errors) {
+        this.setStatus(status.value());
+        this.setTitle(title);
+        this.setDetail(detail);
+        this.setProperty(TIMESTAMP, Instant.now());
+        this.setProperty("errors", errors);
+    }
+}
+```
+
+**Por que CustomProblemDetail?**
+- ✅ **Estende ProblemDetail** - Mantém compatibilidade com RFC 9457
+- ✅ **Timestamp automático** - Adiciona quando o erro ocorreu
+- ✅ **Lista de erros** - Para validações com múltiplos campos
+- ✅ **Flexível** - Pode adicionar outros campos personalizados
+
+### 3.3) Criando o ApiExceptionHandler
+
+Agora vamos criar o tratador global de exceções:
+
+Crie `src/main/java/br/org/soujava/bsb/api/api/exception/ApiExceptionHandler.java`:
+
+```java
+package br.org.soujava.bsb.api.api.exception;
+
+import br.org.soujava.bsb.api.api.v1.response.CustomProblemDetail;
+import br.org.soujava.bsb.api.api.v1.response.ErrorResponse;
+import br.org.soujava.bsb.api.domain.exception.ResourceNotFoundException;
+import jakarta.servlet.http.HttpServletRequest;
+import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
+import org.springframework.http.ProblemDetail;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.ServletWebRequest;
+import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.filter.ServerHttpObservationFilter;
+import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
+
+@RestControllerAdvice
+public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(ApiExceptionHandler.class);
+    private final MessageSource messageSource;
+
+    public ApiExceptionHandler(MessageSource messageSource) {
+        this.messageSource = messageSource;
+    }
+
+    // Trata erros de validação (400 - Bad Request)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    @Override
+    protected ResponseEntity<Object> handleMethodArgumentNotValid(
+            MethodArgumentNotValidException ex,
+            HttpHeaders headers,
+            HttpStatusCode status,
+            WebRequest request) {
+
+        // Converte erros de validação para nossa estrutura
+        final List<ErrorResponse> errors = ex.getBindingResult()
+                .getFieldErrors()
+                .stream()
+                .map(fieldError -> new ErrorResponse(
+                    fieldError.getField(), 
+                    messageSource.getMessage(fieldError, LocaleContextHolder.getLocale())
+                ))
+                .toList();
+
+        // Cria CustomProblemDetail com lista de erros
+        final CustomProblemDetail problemDetail = new CustomProblemDetail(
+            HttpStatus.BAD_REQUEST,
+            "Validation failed", 
+            "The following errors occurred:", 
+            errors
+        );
+
+        // Adiciona observabilidade (logs, métricas)
+        final HttpServletRequest httpServletRequest = ((ServletWebRequest) request).getRequest();
+        ServerHttpObservationFilter.findObservationContext(httpServletRequest)
+                .ifPresent(context -> context.setError(ex));
+
+        LOGGER.error("Validation failed: {}", errors);
+
+        return super.handleExceptionInternal(ex, problemDetail, headers, status, request);
+    }
+
+    // Trata recurso não encontrado (404 - Not Found)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    @ExceptionHandler(ResourceNotFoundException.class)
+    private ResponseEntity<ProblemDetail> handleResourceNotFoundException(
+            HttpServletRequest request, 
+            ResourceNotFoundException ex) {
+
+        // Cria ProblemDetail padrão da RFC 9457
+        final ProblemDetail problemDetail = ProblemDetail
+                .forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+        problemDetail.setTitle(HttpStatus.NOT_FOUND.getReasonPhrase());
+
+        // Adiciona observabilidade
+        ServerHttpObservationFilter.findObservationContext(request)
+                .ifPresent(context -> context.setError(ex));
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problemDetail);
+    }
+}
+```
+
+## 4) Como funciona a implementação
+
+**@RestControllerAdvice**
+- Aplica o tratamento a todos os controllers da aplicação
+- Herda de `ResponseEntityExceptionHandler` para usar as funcionalidades do Spring
+
+**@ExceptionHandler** vs **@Override**
+- `@ExceptionHandler` - Para exceções customizadas (ResourceNotFoundException)
+- `@Override` - Para exceções padrão do Spring (MethodArgumentNotValidException)
+
+**MessageSource**
+- Permite internacionalização das mensagens de erro
+- Converte códigos de erro em mensagens amigáveis
+
+**ServerHttpObservationFilter**
+- Adiciona observabilidade (logs, métricas, tracing)
+- Fundamental para monitoramento em produção
+
+## 5) Exemplos de resposta seguindo RFC 9457
+
+### 5.1) Erro de recurso não encontrado (404):
 ```json
 {
   "type": "about:blank",
   "title": "Not Found",
   "status": 404,
-  "detail": "Not found regitstry with code 999",
-  "instance": "/v1/ninjas/999"
+  "detail": "Ninja não encontrado com ID: 999",
+  "instance": "/api/v1/ninjas/999"
 }
 ```
 
-### 3.2 400 — Validation Error (exemplo)
+### 5.2) Erro de validação (400):
 ```json
 {
   "type": "about:blank",
-  "title": "Bad Request",
+  "title": "Validation failed",
   "status": 400,
-  "detail": "Um ou mais campos estão inválidos.",
-  "timestamp": "2025-08-20T21:15:33.123Z",
+  "detail": "The following errors occurred:",
+  "timestamp": "2024-01-20T10:15:30.123456Z",
   "errors": [
-    { "field": "nome", "message_error": "não deve estar em branco" },
-    { "field": "rank", "message_error": "tamanho deve estar entre 1 e 20" }
+    {
+      "field": "nome",
+      "message_error": "Nome é obrigatório"
+    },
+    {
+      "field": "nivel_forca",
+      "message_error": "Nível de força deve estar entre 1 e 100"
+    }
   ]
 }
 ```
 
-> A propriedade `instance` pode aparecer automaticamente dependendo da configuração do `ProblemDetail` e do servlet container.
+## 6) Vantagens da implementação com RFC 9457
 
----
+✅ **Padrão internacional** - Reconhecido e usado mundialmente
+✅ **Consistência** - Todos os erros seguem a mesma estrutura
+✅ **Extensível** - Pode adicionar campos customizados (timestamp, errors)
+✅ **Observabilidade** - Integração com logs e métricas
+✅ **Internacionalização** - Mensagens em diferentes idiomas
+✅ **Compatibilidade** - Clientes sabem como interpretar os erros
 
-## 4) Testes de erro (MockMvc)
+## 7) Testando o tratamento de erro
 
-Crie `src/test/java/.../api/exception/ApiExceptionHandlerTest.java` com 2 cenários:
+1. Execute a aplicação
+2. Teste diferentes cenários:
 
-### 4.1 GET inexistente → 404
+**Ninja não encontrado:**
+```bash
+curl http://localhost:8080/api/v1/ninjas/999
+```
+
+**Dados inválidos:**
+```bash
+curl -X POST http://localhost:8080/api/v1/ninjas \
+  -H "Content-Type: application/json" \
+  -d '{"nome": "", "nivel_forca": 150}'
+```
+
+## 8) Outros tipos de erro que você pode adicionar
+
 ```java
-@WebMvcTest
-class ApiExceptionHandlerTest {
+// Para problemas de acesso ao banco
+@ExceptionHandler(DataAccessException.class)
+public ResponseEntity<ProblemDetail> handleDataAccess(
+        HttpServletRequest request, DataAccessException ex) {
+    
+    ProblemDetail problemDetail = ProblemDetail
+            .forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR, 
+                              "Erro interno do servidor");
+    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                         .body(problemDetail);
+}
 
-    @Autowired
-    private MockMvc mvc;
-
-    @MockBean
-    private NinjaService service;
-
-    @Test
-    void getInexistente_deveRetornar404ComProblemDetail() throws Exception {
-        given(service.findById(999)).willThrow(new ResourceNotFoundException("Not found regitstry with code 999"));
-
-        mvc.perform(get("/v1/ninjas/999"))
-            .andExpect(status().isNotFound())
-            .andExpect(jsonPath("$.status").value(404))
-            .andExpect(jsonPath("$.title").value("Not Found"))
-            .andExpect(jsonPath("$.detail").value("Not found regitstry with code 999"));
-    }
+// Para problemas de conversão de JSON
+@ExceptionHandler(HttpMessageNotReadableException.class)
+public ResponseEntity<ProblemDetail> handleInvalidJson(
+        HttpServletRequest request, HttpMessageNotReadableException ex) {
+    
+    ProblemDetail problemDetail = ProblemDetail
+            .forStatusAndDetail(HttpStatus.BAD_REQUEST, 
+                              "JSON inválido ou malformado");
+    return ResponseEntity.badRequest().body(problemDetail);
 }
 ```
 
-### 4.2 POST inválido → 400
-Supondo validações em `NinjaRequest` (ex.: `@NotBlank`), envie um body inválido e verifique os campos de erro:
-
-```java
-@Test
-void postComBodyInvalido_deveRetornar400ComListaDeErros() throws Exception {
-    String bodyInvalido = "{ \"nome\": \"\", \"rank\": \"\" }";
-
-    mvc.perform(post("/v1/ninjas")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(bodyInvalido))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.status").value(400))
-        .andExpect(jsonPath("$.title").value("Bad Request"))
-        .andExpect(jsonPath("$.errors").isArray());
-}
-```
-
-> Se ainda não houver anotações de validação em `NinjaRequest`, inclua no STEP 4/6 (`@NotBlank`, `@Size`, etc.) e adicione `@Valid` no controller.
-
----
-
-## 5) Checklist do STEP 7
-- [ ] `ApiExceptionHandler` cobre 404 e 400 (validação) no padrão ProblemDetail
-- [ ] Payload contém `title`, `status`, `detail` e lista `errors` quando aplicável
-- [ ] Testes 404/400 com `MockMvc` **verdes**
-
----
-
-## 6) Próximo passo
-Ir para **[STEP 8 — OpenAPI / Swagger](README_STEP_8.md)** para validar e apresentar a documentação gerada.
+## Próximo passo
+Agora vamos adicionar validações nos DTOs para garantir que os dados enviados estejam corretos. **[STEP 8 — Validações (Bean Validation)](README_STEP_8.md)**

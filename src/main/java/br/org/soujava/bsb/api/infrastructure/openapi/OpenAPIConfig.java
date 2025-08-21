@@ -22,7 +22,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 
-@Profile("local")
+@Profile("!prod") // Não executa em produção por segurança
 @Configuration
 public class OpenAPIConfig {
 
@@ -31,58 +31,57 @@ public class OpenAPIConfig {
     private static final String NOT_ACCEPTABLE_RESPONSE = "NotAcceptableResponse";
     private static final String INTERNAL_SERVER_ERROR_RESPONSE = "InternalServerErrorResponse";
 
-    @Value("${server.address}")
+    @Value("${server.address:localhost}")
     private String host;
 
-    @Value("${server.port}")
+    @Value("${server.port:8080}")
     private Integer port;
-
-    @Value("${server.ssl.enabled}")
-    private Boolean isHttps;
-
-    @Value("${spring.profiles.active}")
-    private String activeProfile;
-
 
     @Bean
     public OpenAPI openAPIDefinition() {
 
         final Info info = new Info()
-                .title("API - Transaction")
+                .title("Ninja API - Workshop SouJava BSB")
                 .version("1.0.0")
                 .contact(descriptionContact())
-                .description("Desafio tecnico para vaga de engenheiro de software na empresa PicPay")
-                .termsOfService("http://www.termsofservice.url")
+                .description("API RESTful de domínio ninja desenvolvida com Spring Boot - Workshop \"Do Zero à API\"")
+                .termsOfService("https://soujava-brasilia.github.io/")
                 .license(descriptionLicense());
 
-        return new OpenAPI().info(info).components(components()).servers(List.of(getServer()));
+        return new OpenAPI()
+                .info(info)
+                .components(components())
+                .servers(List.of(getServer()));
     }
 
     private Contact descriptionContact() {
         return new Contact()
-                .name("Wesley Oliveira Santos")
-                .email("wesleyosantos91@gmail.com")
-                .url("https://wesleyosantos91.github.io/");
+                .name("SouJava Brasília")
+                .email("contato@soujava-brasilia.org")
+                .url("https://soujava-brasilia.github.io/");
     }
 
     private License descriptionLicense() {
         return new License()
-                .name("License")
-                .url("https://github.com/wesleyosantos91/picpay-desafio-backend/blob/main/LICENSE");
+                .name("MIT License")
+                .url("https://opensource.org/licenses/MIT");
     }
 
     private Server getServer() {
         final Server devServer = new Server();
-        devServer.setUrl(String.format("%s://%s:%d", isHttps ? "https" : "http", host, port));
-        devServer.setDescription("Server URL in " + activeProfile + " environment");
+        devServer.setUrl(String.format("http://%s:%d", host, port));
+        devServer.setDescription("Servidor de desenvolvimento");
         return devServer;
     }
 
     private Components components() {
-        return new Components().schemas(gerarSchemas()).responses(gerarResponses());
+        return new Components()
+                .schemas(gerarSchemas())
+                .responses(gerarResponses());
     }
 
     private Map<String, Schema> gerarSchemas() {
+        // Registra o schema do CustomProblemDetail para erros
         return ModelConverters.getInstance().read(CustomProblemDetail.class);
     }
 
@@ -93,20 +92,21 @@ public class OpenAPIConfig {
                 .addMediaType(APPLICATION_JSON_VALUE,
                         new MediaType().schema(new Schema<CustomProblemDetail>().$ref("CustomProblemDetail")));
 
+        // Define respostas padrão para códigos de erro
         apiResponseMap.put(BAD_REQUEST_RESPONSE, new ApiResponse()
-                .description("Bad Request")
+                .description("Requisição inválida - dados enviados estão incorretos")
                 .content(content));
 
         apiResponseMap.put(NOT_FOUND_RESPONSE, new ApiResponse()
-                .description("Not Found")
+                .description("Recurso não encontrado")
                 .content(content));
 
         apiResponseMap.put(NOT_ACCEPTABLE_RESPONSE, new ApiResponse()
-                .description("Not Acceptable")
+                .description("Formato não aceito")
                 .content(content));
 
         apiResponseMap.put(INTERNAL_SERVER_ERROR_RESPONSE, new ApiResponse()
-                .description("Internal Server Error")
+                .description("Erro interno do servidor")
                 .content(content));
 
         return apiResponseMap;

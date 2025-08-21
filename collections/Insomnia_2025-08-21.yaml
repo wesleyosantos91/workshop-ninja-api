@@ -1,0 +1,186 @@
+type: collection.insomnia.rest/5.0
+name: Workshop - API Zero to Hero (Ninjas)
+meta:
+  id: wrk_0e7ee355c0fd48baa89970616bde1473
+  created: 1755733780824
+  modified: 1755733861818
+  description: ""
+collection:
+  - url: localhost:8080/v1/ninjas
+    name: Consulta Paginada
+    meta:
+      id: req_be675770f38141c0ab8c56154ba3ce53
+      created: 1755733787213
+      modified: 1755734051141
+      isPrivate: false
+      description: ""
+      sortKey: -1755733787213
+    method: GET
+    parameters:
+      - id: pair_b253ed1acd31410c8adf0fc3fba8ff58
+        name: nome
+        value: Naruto Uzumaki
+        description: ""
+        disabled: true
+      - id: pair_5224b30c6b2d4f18979f98e41d03a265
+        name: vila
+        value: Konoha
+        description: ""
+        disabled: true
+      - id: pair_3328ec54e98f4473ba5914ca07aaa128
+        name: status
+        value: Renegado
+        description: ""
+        disabled: false
+    headers:
+      - name: User-Agent
+        value: insomnia/11.4.0
+    settings:
+      renderRequestBody: true
+      encodeUrl: true
+      followRedirects: global
+      cookies:
+        send: true
+        store: true
+      rebuildPath: true
+  - url: localhost:8080/v1/ninjas
+    name: Criar Ninja
+    meta:
+      id: req_c1cab49da0db464eba4deffd111ea1dd
+      created: 1755734053750
+      modified: 1755745334487
+      isPrivate: false
+      description: ""
+      sortKey: -1755734053750
+    method: POST
+    body:
+      mimeType: application/json
+      text: |-
+        {
+          "nome": "Boruto Uzumaki",
+          "vila": "Konoha",
+          "cla": "Uzumaki",
+          "rank": "Genin",
+          "chakra_tipo": "Vento/Raio",
+          "especialidade": "Ninjutsu/Bukijutsu",
+          "kekkei_genkai": "Jougan (em desenvolvimento)",
+          "status": "Ativo",
+          "nivel_forca": 65
+        }
+    headers:
+      - name: Content-Type
+        value: application/json
+      - name: User-Agent
+        value: insomnia/11.4.0
+    settings:
+      renderRequestBody: true
+      encodeUrl: true
+      followRedirects: global
+      cookies:
+        send: true
+        store: true
+      rebuildPath: true
+  - url: localhost:8080/v1/ninjas/5
+    name: Atualizar Ninja
+    meta:
+      id: req_750cd07bb0794151bb95b1d8eeb467a0
+      created: 1755734097348
+      modified: 1755734128989
+      isPrivate: false
+      description: ""
+      sortKey: -1755733920481.5
+    method: PUT
+    body:
+      mimeType: application/json
+      text: |-
+        {
+          "nome": "Boruto Uzumaki",
+          "vila": "Konoha",
+          "cla": "Uzumaki",
+          "rank": "Jounin",
+          "chakra_tipo": "Vento/Raio/Água",
+          "especialidade": "Ninjutsu/Kenjutsu",
+          "kekkei_genkai": "Jougan/Karma",
+          "status": "Protetor da Vila",
+          "nivel_forca": 92
+        }
+    headers:
+      - name: Content-Type
+        value: application/json
+      - name: User-Agent
+        value: insomnia/11.4.0
+    settings:
+      renderRequestBody: true
+      encodeUrl: true
+      followRedirects: global
+      cookies:
+        send: true
+        store: true
+      rebuildPath: true
+  - url: localhost:8080/v1/ninjas/5
+    name: Consulta Por ID
+    meta:
+      id: req_ebf4786ca5844e28912b54b0ec97cfc6
+      created: 1755734154094
+      modified: 1755734162239
+      isPrivate: false
+      description: ""
+      sortKey: -1755219851618
+    method: GET
+    parameters:
+      - id: pair_61fc8a5d064b43d689ff72c2dea279fa
+        name: ""
+        value: ""
+        description: ""
+        disabled: false
+    headers:
+      - name: User-Agent
+        value: insomnia/11.4.0
+    settings:
+      renderRequestBody: true
+      encodeUrl: true
+      followRedirects: global
+      cookies:
+        send: true
+        store: true
+      rebuildPath: true
+  - url: localhost:8080/v1/ninjas/5
+    name: Delete Por ID
+    meta:
+      id: req_4d478076ca904106b49bb67a6cc4f652
+      created: 1755734174979
+      modified: 1755734180569
+      isPrivate: false
+      description: ""
+      sortKey: -1754962883820.5
+    method: DELETE
+    parameters:
+      - id: pair_61fc8a5d064b43d689ff72c2dea279fa
+        name: ""
+        value: ""
+        description: ""
+        disabled: false
+    headers:
+      - name: User-Agent
+        value: insomnia/11.4.0
+    settings:
+      renderRequestBody: true
+      encodeUrl: true
+      followRedirects: global
+      cookies:
+        send: true
+        store: true
+      rebuildPath: true
+cookieJar:
+  name: Default Jar
+  meta:
+    id: jar_de8562af65574b7c135578fe684c8df812c0ba73
+    created: 1755733780828
+    modified: 1755733780828
+environments:
+  name: Base Environment
+  meta:
+    id: env_de8562af65574b7c135578fe684c8df812c0ba73
+    created: 1755733780826
+    modified: 1755733780826
+    isPrivate: false

@@ -1,8 +1,18 @@
 package br.org.soujava.bsb.api.core.validation;
 
-public interface Groups {
+/**
+ * Grupos de validação para Bean Validation.
+ * Permite aplicar diferentes validações para diferentes contextos.
+ */
+public class Groups {
 
-    interface Create {}
+    /**
+     * Grupo usado para validações na criação de recursos.
+     */
+    public interface Create {}
 
-    interface Update {}
+    /**
+     * Grupo usado para validações na atualização de recursos.
+     */
+    public interface Update {}
 }
