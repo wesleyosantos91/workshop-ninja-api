@@ -61,7 +61,7 @@ class NinjaControllerTest {
         ninjaEntity.setNome("Naruto Uzumaki");
         ninjaEntity.setVila("Konoha");
         ninjaEntity.setCla("Uzumaki");
-        ninjaEntity.setRank("Hokage");
+        ninjaEntity.setRank("Kage"); // Mudando de "Hokage" para "Kage" (valor válido)
         ninjaEntity.setChakraTipo("Vento");
         ninjaEntity.setEspecialidade("Ninjutsu");
         ninjaEntity.setKekkeiGenkai("Kurama (Bijuu)");
@@ -73,7 +73,7 @@ class NinjaControllerTest {
                 "Naruto Uzumaki",
                 "Konoha",
                 "Uzumaki",
-                "Hokage",
+                "Kage", // Mudando de "Hokage" para "Kage" (valor válido)
                 "Vento",
                 "Ninjutsu",
                 "Kurama (Bijuu)",
@@ -99,7 +99,7 @@ class NinjaControllerTest {
                 .andExpect(jsonPath("$.id", is(1)))
                 .andExpect(jsonPath("$.nome", is("Naruto Uzumaki")))
                 .andExpect(jsonPath("$.vila", is("Konoha")))
-                .andExpect(jsonPath("$.rank", is("Hokage")))
+                .andExpect(jsonPath("$.rank", is("Kage"))) // Corrigindo de "Hokage" para "Kage"
                 .andExpect(jsonPath("$.chakra_tipo", is("Vento"))) // snake_case por causa do @JsonNaming
                 .andExpect(jsonPath("$.nivel_forca", is(98)));
     }
@@ -119,7 +119,7 @@ class NinjaControllerTest {
                 .andExpect(jsonPath("$.id", is(1)))
                 .andExpect(jsonPath("$.nome", is("Naruto Uzumaki")))
                 .andExpect(jsonPath("$.vila", is("Konoha")))
-                .andExpect(jsonPath("$.rank", is("Hokage")));
+                .andExpect(jsonPath("$.rank", is("Kage")));
     }
 
     @Test
@@ -276,7 +276,7 @@ class NinjaControllerTest {
         // When/Then: fazer requisição com JSON inválido
         mockMvc.perform(post("/v1/ninjas")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{ json_malformado: ")) // JSON inválido
+                        .content("{ \"nome\": \"test\", \"malformed\": }")) // JSON inválido
                 .andDo(print())
                 .andExpect(status().isBadRequest()); // Status 400
     }
@@ -294,6 +294,50 @@ class NinjaControllerTest {
                 .andDo(print())
                 .andExpect(status().isCreated())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON));
+    }
+
+    @Test
+    @DisplayName("POST /v1/ninjas - Deve retornar erro 400 para JSON vazio devido à validação")
+    void deveRetornarErro400ParaJsonVazioDevidoValidacao() throws Exception {
+        // Given: request com JSON vazio - deve falhar na validação
+        String jsonVazio = "{}"; // JSON vazio
+
+        // When/Then: fazer requisição com JSON vazio e esperar erro de validação
+        mockMvc.perform(post("/v1/ninjas")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonVazio))
+                .andDo(print())
+                .andExpect(status().isBadRequest()) // Status 400 - falha na validação
+                .andExpect(content().contentType("application/problem+json"))
+                .andExpect(jsonPath("$.status", is(400)))
+                .andExpect(jsonPath("$.title", is("Bad Request")))
+                .andExpect(jsonPath("$.errors").isArray());
+    }
+
+    @Test
+    @DisplayName("POST /v1/ninjas - Deve retornar erro 400 para dados inválidos")
+    void deveRetornarErro400ParaDadosInvalidos() throws Exception {
+        // Given: request com dados que não passam na validação
+        NinjaRequest requestInvalido = new NinjaRequest(
+                "", // nome vazio - falha @NotBlank
+                "", // vila vazia - falha @NotBlank
+                "Uzumaki",
+                "RankInvalido", // rank inválido - falha @Pattern
+                "", // chakraTipo vazio - falha @NotBlank
+                "Ninjutsu",
+                "Kurama (Bijuu)",
+                "StatusInvalido", // status inválido - falha @Pattern
+                101, // nivelForca > 100 - falha @Max
+                LocalDate.of(2025, 1, 1) // data futura - falha @PastOrPresent
+        );
+
+        // When/Then: fazer requisição com dados inválidos
+        mockMvc.perform(post("/v1/ninjas")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestInvalido)))
+                .andDo(print())
+                .andExpect(status().isBadRequest()) // Status 400 - falha na validação
+                .andExpect(content().contentType("application/problem+json"));
     }
 
     @Test
@@ -340,20 +384,46 @@ class NinjaControllerTest {
     }
 
     @Test
-    @DisplayName("POST /v1/ninjas - Deve aceitar JSON válido mesmo sem validação Bean Validation")
-    void deveAceitarJsonValidoMesmoSemValidacao() throws Exception {
-        // Given: request com dados mínimos (sem validação Bean Validation configurada)
-        // O projeto não tem hibernate-validator configurado, então aceita qualquer JSON válido
-        String jsonMinimo = "{}"; // JSON vazio mas válido
+    @DisplayName("POST /v1/ninjas - Deve criar ninja com dados válidos completos")
+    void deveCrearNinjaComDadosValidosCompletos() throws Exception {
+        // Given: request com todos os dados válidos obrigatórios
+        NinjaRequest requestCompleto = new NinjaRequest(
+                "Sasuke Uchiha",
+                "Konoha",
+                "Uchiha",
+                "Jounin", // rank válido
+                "Fogo", // chakraTipo obrigatório
+                "Ninjutsu",
+                "Sharingan",
+                "Ativo", // status válido
+                95,
+                LocalDate.of(2024, 1, 1)
+        );
 
-        // Mock do service para não falhar
-        when(ninjaService.create(any(NinjaRequest.class))).thenReturn(ninjaEntity);
+        NinjaEntity sasuke = new NinjaEntity();
+        sasuke.setId(2);
+        sasuke.setNome("Sasuke Uchiha");
+        sasuke.setVila("Konoha");
+        sasuke.setCla("Uchiha");
+        sasuke.setRank("Jounin");
+        sasuke.setChakraTipo("Fogo");
+        sasuke.setEspecialidade("Ninjutsu");
+        sasuke.setKekkeiGenkai("Sharingan");
+        sasuke.setStatus("Ativo");
+        sasuke.setNivelForca(95);
+        sasuke.setDataRegistro(LocalDate.of(2024, 1, 1));
 
-        // When/Then: fazer requisição com JSON válido
+        when(ninjaService.create(any(NinjaRequest.class))).thenReturn(sasuke);
+
+        // When/Then: fazer requisição com dados válidos completos
         mockMvc.perform(post("/v1/ninjas")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(jsonMinimo))
+                        .content(objectMapper.writeValueAsString(requestCompleto)))
                 .andDo(print())
-                .andExpect(status().isCreated()); // Status 201 - aceita pois não há validação
+                .andExpect(status().isCreated()) // Status 201 - dados válidos
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.id", is(2)))
+                .andExpect(jsonPath("$.nome", is("Sasuke Uchiha")))
+                .andExpect(jsonPath("$.rank", is("Jounin")));
     }
 }

@@ -57,7 +57,7 @@ desenvolvimento.
 1. **Clone o repositório:**
 
 ```bash
-git clone <url-do-repositorio>
+git clone https://github.com/wesleyosantos91/workshop-ninja-api.git
 cd api-do-zero
 ```
 
