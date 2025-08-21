@@ -1,7 +1,17 @@
 
+<div align="center">
+    ## 
+</div>
+
+<div align="center">
+
+## Do Zero à API — Plano Didático (Principal)
+  <img src="docs/asserts/logo-soujava.png" alt="logo" width="200" height="auto" />
+</div>
+
 
 <div align="center" width="100%">
-    <img src="docs/asserts/logo-soujava.png" alt="logo" width="200" height="auto" />
+    
 </div>
 
 <div align="center">
@@ -48,7 +58,39 @@
 - [ `Java 21+` ](https://www.oracle.com/java/technologies/downloads/#java21)
 - [ `Apache Maven`](https://maven.apache.org/download.cgi)
 
-# Do Zero à API — Plano Didático (Principal)
+
+Este projeto segue um padrão que separa **interface**, **domínio** e **infraestrutura**, com módulos *cross-cutting* (métricas, validação, aspectos) e versionamento da API.
+
+---
+
+## 📂 Estrutura de Pastas
+
+```
+src/main/java/br/org/soujava/bsb/apidozero
+├── api/                      # Interface pública (HTTP)
+│   ├── exception/            # Tradução de exceções -> respostas HTTP
+│   └── v1/
+│       ├── controller/       # Endpoints REST
+│       ├── request/          # DTOs de entrada
+│       └── response/         # DTOs de saída
+│
+├── core/                     # Cross-cutting e utilitários
+│   ├── mapper/               # MapStruct / DTO <-> domínio
+│   └── validation/           # Validadores e grupos
+│
+├── domain/                   # Regras de negócio
+│   ├── entity/               # Entidades/JPA
+│   ├── exception/            # Exceções de negócio
+│   ├── model/                # Objetos de domínio (value objects, aggregates)
+│   ├── repository/           # Portas de persistência
+│   └── service/              # Casos de uso
+│
+├── infrastructure/           # Adaptações técnicas (portas externas)
+│   └── openapi/              # Config SpringDoc (Swagger)
+└── Application.java          # Bootstrap Spring Boot
+```
+
+---
 
 Este documento **principal** organiza o projeto em **9 etapas** para ensino passo a passo.  
 Cada etapa terá seu próprio arquivo com instruções detalhadas dentro de `docs/`.
