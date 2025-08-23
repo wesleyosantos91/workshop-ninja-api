@@ -183,26 +183,56 @@ Crie `src/main/java/br/org/soujava/bsb/api/core/mapper/NinjaMapper.java`:
 ```java
 package br.org.soujava.bsb.api.core.mapper;
 
+import static org.mapstruct.NullValueCheckStrategy.ALWAYS;
+import static org.mapstruct.NullValuePropertyMappingStrategy.IGNORE;
+
 import br.org.soujava.bsb.api.api.v1.request.NinjaQueryRequest;
 import br.org.soujava.bsb.api.api.v1.request.NinjaRequest;
 import br.org.soujava.bsb.api.api.v1.response.NinjaResponse;
 import br.org.soujava.bsb.api.domain.entity.NinjaEntity;
+import java.util.ArrayList;
+import java.util.List;
 import org.mapstruct.Mapper;
+import org.mapstruct.MappingTarget;
+import org.mapstruct.ReportingPolicy;
 import org.mapstruct.factory.Mappers;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.stereotype.Component;
 
-@Mapper
+@Mapper(nullValuePropertyMappingStrategy = IGNORE,
+        nullValueCheckStrategy = ALWAYS,
+        unmappedTargetPolicy = ReportingPolicy.IGNORE
+)
+@Component
 public interface NinjaMapper {
 
-    NinjaMapper INSTANCE = Mappers.getMapper(NinjaMapper.class);
-
-    // Converte Request para Entity (para salvar no banco)
-    NinjaEntity requestToEntity(NinjaRequest request);
-
-    // Converte Entity para Response (para retornar na API)
-    NinjaResponse entityToResponse(NinjaEntity entity);
+    NinjaMapper MAPPER = Mappers.getMapper(NinjaMapper.class);
 
     // Converte Query para Entity (para buscar no banco)
-    NinjaEntity queryToEntity(NinjaQueryRequest query);
+    NinjaEntity toEntity(NinjaQueryRequest request);
+
+    // Converte Request para Entity (para salvar no banco)
+    NinjaEntity toEntity(NinjaRequest request);
+
+    // Converte Request para Entity existente (para atualização)
+    NinjaEntity toEntity(NinjaRequest request, @MappingTarget NinjaEntity entity);
+
+    // Converte Entity para Response (para retornar na API)
+    NinjaResponse toResponse(NinjaEntity entity);
+
+    // Converte lista de Entity para lista de Response
+    default List<NinjaResponse> toListResponse(List<NinjaEntity> entities) {
+        final List<NinjaResponse> list = new ArrayList<>();
+        entities.forEach(e -> list.add(toResponse(e)));
+        return list;
+    }
+
+    // Converte Page de Entity para Page de Response
+    default Page<NinjaResponse> toPageResponse(Page<NinjaEntity> pages) {
+        final List<NinjaResponse> list = toListResponse(pages.getContent());
+        return new PageImpl<>(list, pages.getPageable(), pages.getTotalElements());
+    }
 }
 ```
 

@@ -17,7 +17,7 @@ O arquivo `application.yml` já está configurado para trabalhar com H2 e execut
 ```yaml
 spring:
   datasource:
-    url: jdbc:h2:mem:naruto
+    url: jdbc:h2:mem:naruto;MODE=MYSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
     driverClassName: org.h2.Driver
     username: sa
     password: 

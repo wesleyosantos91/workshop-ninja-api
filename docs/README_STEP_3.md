@@ -14,6 +14,7 @@ package br.org.soujava.bsb.api.domain.entity;
 
 import jakarta.persistence.*;
 import java.time.LocalDate;
+import org.hibernate.annotations.ColumnDefault;
 
 @Entity
 @Table(name = "NINJA")
@@ -21,7 +22,7 @@ public class NinjaEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "ID_NINJA")
+    @Column(name = "ID_NINJA", nullable = false)
     private Integer id;
 
     @Column(name = "NOME", nullable = false, length = 100)
@@ -45,12 +46,14 @@ public class NinjaEntity {
     @Column(name = "KEKKEI_GENKAI", length = 50)
     private String kekkeiGenkai;
 
+    @ColumnDefault("'Ativo'")
     @Column(name = "STATUS", length = 20)
     private String status;
 
     @Column(name = "NIVEL_FORCA")
     private Integer nivelForca;
 
+    @ColumnDefault("CURRENT_DATE")
     @Column(name = "DATA_REGISTRO")
     private LocalDate dataRegistro;
 

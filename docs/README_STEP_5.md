@@ -44,87 +44,56 @@ Crie `src/main/java/br/org/soujava/bsb/api/domain/service/NinjaService.java`:
 ```java
 package br.org.soujava.bsb.api.domain.service;
 
+import static br.org.soujava.bsb.api.core.mapper.NinjaMapper.MAPPER;
+import static java.text.MessageFormat.format;
+
 import br.org.soujava.bsb.api.api.v1.request.NinjaQueryRequest;
 import br.org.soujava.bsb.api.api.v1.request.NinjaRequest;
-import br.org.soujava.bsb.api.api.v1.response.NinjaResponse;
-import br.org.soujava.bsb.api.core.mapper.NinjaMapper;
 import br.org.soujava.bsb.api.domain.entity.NinjaEntity;
 import br.org.soujava.bsb.api.domain.exception.ResourceNotFoundException;
 import br.org.soujava.bsb.api.domain.repository.NinjaRepository;
 import org.springframework.data.domain.Example;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class NinjaService {
 
-    private final NinjaRepository ninjaRepository;
-    private final NinjaMapper ninjaMapper;
+    private final NinjaRepository respository;
 
-    public NinjaService(NinjaRepository ninjaRepository, NinjaMapper ninjaMapper) {
-        this.ninjaRepository = ninjaRepository;
-        this.ninjaMapper = ninjaMapper;
+    public NinjaService(NinjaRepository respository) {
+        this.respository = respository;
     }
 
-    // 1) BUSCAR TODOS OS NINJAS
-    public List<NinjaResponse> findAll() {
-        return ninjaRepository.findAll()
-                .stream()
-                .map(ninjaMapper::entityToResponse)
-                .toList();
+    @Transactional
+    public NinjaEntity create(NinjaRequest ninjaRequest) {
+        return respository.save(MAPPER.toEntity(ninjaRequest));
     }
 
-    // 2) BUSCAR NINJA POR ID
-    public NinjaResponse findById(Integer id) {
-        NinjaEntity ninja = ninjaRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Ninja não encontrado com ID: " + id));
-        
-        return ninjaMapper.entityToResponse(ninja);
+    @Transactional(readOnly = true)
+    public NinjaEntity findById(Integer id) throws ResourceNotFoundException {
+        return respository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(format("Not found regitstry with code {0}", id)));
     }
 
-    // 3) BUSCAR COM FILTROS
-    public List<NinjaResponse> findByQuery(NinjaQueryRequest query) {
-        NinjaEntity example = ninjaMapper.queryToEntity(query);
-        Example<NinjaEntity> ninjaExample = Example.of(example);
-        
-        return ninjaRepository.findAll(ninjaExample)
-                .stream()
-                .map(ninjaMapper::entityToResponse)
-                .toList();
+    @Transactional(readOnly = true)
+    public Page<NinjaEntity> search(NinjaQueryRequest queryRequest, Pageable pageable) {
+        final var ninjaEntityExample = Example.of(MAPPER.toEntity(queryRequest));
+        return respository.findAll(ninjaEntityExample, pageable);
     }
 
-    // 4) CRIAR NOVO NINJA
-    public NinjaResponse create(NinjaRequest request) {
-        NinjaEntity ninja = ninjaMapper.requestToEntity(request);
-        NinjaEntity savedNinja = ninjaRepository.save(ninja);
-        
-        return ninjaMapper.entityToResponse(savedNinja);
+    @Transactional
+    public NinjaEntity update(Integer id, NinjaRequest request) throws ResourceNotFoundException {
+        final var ninja = MAPPER.toEntity(request, findById(id));
+        return respository.save(ninja);
     }
 
-    // 5) ATUALIZAR NINJA EXISTENTE
-    public NinjaResponse update(Integer id, NinjaRequest request) {
-        // Verifica se o ninja existe
-        NinjaEntity existingNinja = ninjaRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Ninja não encontrado com ID: " + id));
-        
-        // Converte o request para entity
-        NinjaEntity ninja = ninjaMapper.requestToEntity(request);
-        ninja.setId(id); // Mantém o ID original
-        
-        // Salva e retorna
-        NinjaEntity updatedNinja = ninjaRepository.save(ninja);
-        return ninjaMapper.entityToResponse(updatedNinja);
-    }
-
-    // 6) DELETAR NINJA
-    public void deleteById(Integer id) {
-        // Verifica se o ninja existe antes de deletar
-        if (!ninjaRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Ninja não encontrado com ID: " + id);
-        }
-        
-        ninjaRepository.deleteById(id);
+    @Transactional
+    public void delete(Integer id) throws ResourceNotFoundException {
+        final var ninjaEntity = findById(id);
+        respository.delete(ninjaEntity);
     }
 }
 ```
